@@ -208,7 +208,6 @@ func (c *RunCommand) Run(args []string) int {
 	}
 	c.Config.Logger.Debug("global hash", "value", ctx.GlobalHash)
 	c.Config.Logger.Debug("local cache folder", "path", runOptions.cacheFolder)
-	fs.EnsureDir(runOptions.cacheFolder)
 
 	// TODO: consolidate some of these arguments
 	g := &completeGraph{
