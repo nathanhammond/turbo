@@ -347,11 +347,11 @@ fs.copyFileSync(
   }
 
   readFileSync(filepath) {
-    return fs.readFileSync(path.join(this.root, filepath), "utf-8");
+    return fs.readFileSync(path.join(filepath), "utf-8");
   }
 
   readdirSync(filepath) {
-    return fs.readdirSync(path.join(this.root, filepath), "utf-8");
+    return fs.readdirSync(path.join(filepath), "utf-8");
   }
 
   globbySync(

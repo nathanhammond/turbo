@@ -180,7 +180,7 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Config.Cache.Dir = runOptions.cacheFolder
+	c.Config.Cache.Dir = "/Users/nathanhammond/.turbo/caches"
 
 	ctx, err := context.New(context.WithGraph(runOptions.cwd, c.Config))
 	if err != nil {
@@ -776,7 +776,7 @@ func (c *RunCommand) executeDryRun(engine *core.Scheduler, g *completeGraph, rs 
 			Command:      command,
 			Dir:          pt.pkg.Dir,
 			Outputs:      pt.ExternalOutputs(),
-			LogFile:      pt.RepoRelativeLogFile(),
+			LogFile:      pt.RepoRelativeLogFile(hash),
 			Dependencies: stringAncestors,
 			Dependents:   stringDescendents,
 		})
@@ -798,7 +798,7 @@ func (c *RunCommand) executeDryRun(engine *core.Scheduler, g *completeGraph, rs 
 func replayLogs(logger hclog.Logger, output cli.Ui, runOptions *RunOptions, logFileName, hash string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	logger.Debug("start replaying logs")
-	f, err := os.Open(filepath.Join(runOptions.cwd, logFileName))
+	f, err := os.Open(logFileName)
 	if err != nil {
 		output.Warn(fmt.Sprintf("error reading logs: %v", err))
 		logger.Error(fmt.Sprintf("error reading logs: %v", err.Error()))
@@ -886,9 +886,6 @@ func (e *execContext) exec(pt *packageTask) error {
 		WarnPrefix:   actualPrefix,
 	}
 
-	logFileName := filepath.Join(pt.pkg.Dir, ".turbo", fmt.Sprintf("turbo-%v.log", pt.task))
-	targetLogger.Debug("log file", "path", filepath.Join(e.rs.Opts.cwd, logFileName))
-
 	passThroughArgs := e.rs.ArgsForTask(pt.task)
 	hash, err := pt.hash(passThroughArgs, e.logger)
 	e.logger.Debug("task hash", "value", hash)
@@ -896,6 +893,10 @@ func (e *execContext) exec(pt *packageTask) error {
 		e.ui.Error(fmt.Sprintf("Hashing error: %v", err))
 		// @TODO probably should abort fatally???
 	}
+
+	logFileName := filepath.Join("/Users/nathanhammond/.turbo/logs", hash, pt.pkg.Dir, fmt.Sprintf("turbo-%v.log", pt.task))
+	targetLogger.Debug("log file", "path", logFileName)
+
 	// Cache ---------------------------------------------
 	var hit bool
 	if !e.rs.Opts.forceExecution {
@@ -907,7 +908,7 @@ func (e *execContext) exec(pt *packageTask) error {
 			case HashLogs:
 				targetUi.Output(fmt.Sprintf("cache hit, suppressing output %s", ui.Dim(hash)))
 			case FullLogs:
-				if e.rs.Opts.stream && fs.FileExists(filepath.Join(e.rs.Opts.cwd, logFileName)) {
+				if e.rs.Opts.stream && fs.FileExists(logFileName) {
 					e.logReplayWaitGroup.Add(1)
 					go replayLogs(targetLogger, e.ui, e.rs.Opts, logFileName, hash, &e.logReplayWaitGroup)
 				}
@@ -1001,7 +1002,7 @@ func (e *execContext) exec(pt *packageTask) error {
 			if e.rs.Opts.stream {
 				targetUi.Error(fmt.Sprintf("Error: command finished with error: %s", err))
 			} else {
-				f, err := os.Open(filepath.Join(e.rs.Opts.cwd, logFileName))
+				f, err := os.Open(logFileName)
 				if err != nil {
 					targetUi.Warn(fmt.Sprintf("failed reading logs: %v", err))
 				}
@@ -1025,7 +1026,12 @@ func (e *execContext) exec(pt *packageTask) error {
 
 	// Cache command outputs
 	if e.rs.Opts.cache && (pt.pipeline.Cache == nil || *pt.pipeline.Cache) {
-		outputs := pt.HashableOutputs()
+		hash, err := pt.hash(passThroughArgs, targetLogger)
+		if err != nil {
+			return err
+		}
+
+		outputs := pt.HashableOutputs(hash)
 		targetLogger.Debug("caching output", "outputs", outputs)
 		ignore := []string{}
 		filesToBeCached := globby.GlobFiles(pt.pkg.Dir, outputs, ignore)
@@ -1109,19 +1115,19 @@ func (pt *packageTask) ExternalOutputs() []string {
 	return pt.pipeline.Outputs
 }
 
-func (pt *packageTask) RepoRelativeLogFile() string {
-	return filepath.Join(pt.pkg.Dir, ".turbo", fmt.Sprintf("turbo-%v.log", pt.task))
+func (pt *packageTask) RepoRelativeLogFile(hash string) string {
+	return filepath.Join("/Users/nathanhammond/.turbo/logs", hash, pt.pkg.Dir, fmt.Sprintf("turbo-%v.log", pt.task))
 }
 
-func (pt *packageTask) HashableOutputs() []string {
-	outputs := []string{fmt.Sprintf(".turbo/turbo-%v.log", pt.task)}
+func (pt *packageTask) HashableOutputs(hash string) []string {
+	outputs := []string{fmt.Sprintf("/Users/nathanhammond/.turbo/logs/%v/%v/turbo-%v.log", hash, pt.pkg.Dir, pt.task)}
 	outputs = append(outputs, pt.ExternalOutputs()...)
 	return outputs
 }
 
 func (pt *packageTask) hash(args []string, logger hclog.Logger) (string, error) {
 	// Hash ---------------------------------------------
-	outputs := pt.HashableOutputs()
+	outputs := pt.HashableOutputs("asdf")
 	logger.Debug("task output globs", "outputs", outputs)
 
 	// Hash the task-specific environment variables found in the dependsOnKey in the pipeline
