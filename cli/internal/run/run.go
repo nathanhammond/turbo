@@ -183,6 +183,22 @@ func (c *RunCommand) Run(args []string) int {
 		c.logError(c.Config.Logger, "", err)
 		return 1
 	}
+	// We use Cycles instead of Validate because
+	// our DAG has multiple roots (entrypoints).
+	// Validate mandates that there is only a single root node.
+	cycles := ctx.TopologicalGraph.Cycles()
+	if len(cycles) > 0 {
+		cycleLines := make([]string, len(cycles))
+		for i, cycle := range cycles {
+			vertices := make([]string, len(cycle))
+			for j, vertex := range cycle {
+				vertices[j] = vertex.(string)
+			}
+			cycleLines[i] = "\t" + strings.Join(vertices, ",")
+		}
+		c.logError(c.Config.Logger, "", fmt.Errorf("Found cycles in package dependency graph:\n%v", strings.Join(cycleLines, "\n")))
+		return 1
+	}
 	targets, err := getTargetsFromArguments(args, c.Config.TurboConfigJSON)
 	if err != nil {
 		c.logError(c.Config.Logger, "", fmt.Errorf("failed to resolve targets: %w", err))
@@ -336,7 +352,10 @@ func buildTaskGraph(topoGraph *dag.AcyclicGraph, pipeline fs.Pipeline, rs *runSp
 		isPackageTask := util.IsPackageTask(taskName)
 		for _, dependency := range taskDefinition.TaskDependencies {
 			if isPackageTask && util.IsPackageTask(dependency) {
-				engine.AddDep(dependency, taskName)
+				err := engine.AddDep(dependency, taskName)
+				if err != nil {
+					return nil, err
+				}
 			} else {
 				deps.Add(dependency)
 			}
@@ -664,6 +683,9 @@ func (c *RunCommand) executeTasks(g *completeGraph, rs *runSpec, engine *core.Sc
 			if exitCodeErr.ExitCode > exitCode {
 				exitCode = exitCodeErr.ExitCode
 			}
+		} else if exitCode == 0 {
+			// We hit some error, it shouldn't be exit code 0
+			exitCode = 1
 		}
 		c.Ui.Error(err.Error())
 	}
@@ -1083,7 +1105,10 @@ func (pt *packageTask) ToPackageFileHashKey() packageFileHashKey {
 func (g *completeGraph) getPackageTaskVisitor(visitor func(pt *packageTask) error) func(taskID string) error {
 	return func(taskID string) error {
 		name, task := util.GetPackageTaskFromId(taskID)
-		pkg := g.PackageInfos[name]
+		pkg, ok := g.PackageInfos[name]
+		if !ok {
+			return fmt.Errorf("cannot find package %v for task %v", name, taskID)
+		}
 		// first check for package-tasks
 		pipeline, ok := g.Pipeline[fmt.Sprintf("%v", taskID)]
 		if !ok {
