@@ -25,22 +25,37 @@ type readTest struct {
 	ReuseRecord bool
 }
 
-// In these tests, the §, ¶ and ∑ characters in readTest.Input are used to denote
-// the start of a field, a record boundary and the position of an error respectively.
+// In these tests, the § and ∑ characters in readTest.Input are used to denote
+// the start of a field and the position of an error respectively.
 // They are removed before parsing and are used to verify the position
 // information reported by FieldPos.
 
 var readTests = []readTest{
 	{
-		Name:   "Simple",
-		Input:  "§100644 §blob §0808e1868bde7051b4d1bd2284538bfa6f0c00e0\t§package.json\n",
-		Output: [][]string{{"100644", "blob", "0808e1868bde7051b4d1bd2284538bfa6f0c00e0", "package.json"}},
+		Name:   "simple",
+		Input:  "§100644 §blob §e69de29bb2d1d6434b8b29ae775ad8c2e48c5391\t§package.json\000",
+		Output: [][]string{{"100644", "blob", "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391", "package.json"}},
 	},
-	// {
-	// 	Name:   "EOF",
-	// 	Input:  "§100644 §blob §0808e1868bde7051b4d1bd2284538bfa6f0c00e0\t§package.json",
-	// 	Output: [][]string{{"100644", "blob", "0808e1868bde7051b4d1bd2284538bfa6f0c00e0", "package.json"}},
-	// },
+	{
+		Name:   "no trailing nul",
+		Input:  "§100644 §blob §e69de29bb2d1d6434b8b29ae775ad8c2e48c5391\t§package.json",
+		Output: [][]string{{"100644", "blob", "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391", "package.json"}},
+	},
+	{
+		Name:  "weird file names",
+		Input: "§100644 §blob §e69de29bb2d1d6434b8b29ae775ad8c2e48c5391\t§\t\000§100644 §blob §e69de29bb2d1d6434b8b29ae775ad8c2e48c5391\t§\"\000§100644 §blob §5b999efa470b056e329b4c23a73904e0794bdc2f\t§.eslintrc.js\000§100644 §blob §f44f57fff95196c5f7139dfa0b96875f1e9650a9\t§.gitignore\000§100644 §blob §33dbaf21275ca2a5f460249d941cbc27d5da3121\t§README.md\000§040000 §tree §7360f2d292aec95907cebdcbb412a6bf2bd10f8a\t§apps\000§100644 §blob §9ec2879b24ce2c817296eebe2cb3846f8e4751ea\t§package.json\000§040000 §tree §5759aadaea2cde55468a61e7104eb0a9d86c1d30\t§packages\000§100644 §blob §33d0621ee2f4da4a2f6f6bdd51a42618d181e337\t§turbo.json\000",
+		Output: [][]string{
+			{"100644", "blob", "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391", "\t"},
+			{"100644", "blob", "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391", "\""},
+			{"100644", "blob", "5b999efa470b056e329b4c23a73904e0794bdc2f", ".eslintrc.js"},
+			{"100644", "blob", "f44f57fff95196c5f7139dfa0b96875f1e9650a9", ".gitignore"},
+			{"100644", "blob", "33dbaf21275ca2a5f460249d941cbc27d5da3121", "README.md"},
+			{"040000", "tree", "7360f2d292aec95907cebdcbb412a6bf2bd10f8a", "apps"},
+			{"100644", "blob", "9ec2879b24ce2c817296eebe2cb3846f8e4751ea", "package.json"},
+			{"040000", "tree", "5759aadaea2cde55468a61e7104eb0a9d86c1d30", "packages"},
+			{"100644", "blob", "33d0621ee2f4da4a2f6f6bdd51a42618d181e337", "turbo.json"},
+		},
+	},
 }
 
 func TestRead(t *testing.T) {
@@ -135,7 +150,6 @@ func errorWithPosition(err error, recNum int, positions [][][2]int, errPositions
 		panic(fmt.Errorf("no error position found for error at record %d", recNum))
 	}
 	parseErr1 := *parseErr
-	parseErr1.StartLine = positions[recNum][0][0]
 	parseErr1.Line = errPos[0]
 	parseErr1.Column = errPos[1]
 	return &parseErr1
@@ -158,18 +172,17 @@ func makePositions(text string) ([][][2]int, map[int][2]int, string) {
 	for len(text) > 0 {
 		r, size := utf8.DecodeRuneInString(text)
 		switch r {
-		case '\n':
+		case '\000':
 			line++
 			col = 1
-			buf = append(buf, '\n')
+			buf = append(buf, '\000')
+			positions = append(positions, [][2]int{})
+			recNum++
 		case '§':
 			if len(positions) == 0 {
 				positions = append(positions, [][2]int{})
 			}
 			positions[len(positions)-1] = append(positions[len(positions)-1], [2]int{line, col})
-		case '¶':
-			positions = append(positions, [][2]int{})
-			recNum++
 		case '∑':
 			errPositions[recNum] = [2]int{line, col}
 		default:
@@ -207,7 +220,7 @@ func (r *nTimes) Read(p []byte) (n int, err error) {
 	}
 }
 
-// benchmarkRead measures reading the provided CSV rows data.
+// benchmarkRead measures reading the provided ls-tree data.
 // initReader, if non-nil, modifies the Reader before it's used.
 func benchmarkRead(b *testing.B, initReader func(*Reader), rows string) {
 	b.ReportAllocs()
@@ -226,54 +239,12 @@ func benchmarkRead(b *testing.B, initReader func(*Reader), rows string) {
 	}
 }
 
-const benchmarkCSVData = `x,y,z,w
-x,y,z,
-x,y,,
-x,,,
-,,,
-"x","y","z","w"
-"x","y","z",""
-"x","y","",""
-"x","","",""
-"","","",""
-`
+const benchmarkLSTreeData = `100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391		\000100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	"\000100644 blob 5b999efa470b056e329b4c23a73904e0794bdc2f	.eslintrc.js\000100644 blob f44f57fff95196c5f7139dfa0b96875f1e9650a9	.gitignore\000100644 blob 33dbaf21275ca2a5f460249d941cbc27d5da3121	README.md\000040000 tree 7360f2d292aec95907cebdcbb412a6bf2bd10f8a	apps\000100644 blob 9ec2879b24ce2c817296eebe2cb3846f8e4751ea	package.json\000040000 tree 5759aadaea2cde55468a61e7104eb0a9d86c1d30	packages\000100644 blob 33d0621ee2f4da4a2f6f6bdd51a42618d181e337	turbo.json\000`
 
 func BenchmarkRead(b *testing.B) {
-	benchmarkRead(b, nil, benchmarkCSVData)
-}
-
-func BenchmarkReadWithFieldsPerRecord(b *testing.B) {
-	benchmarkRead(b, func(r *Reader) {}, benchmarkCSVData)
-}
-
-func BenchmarkReadWithoutFieldsPerRecord(b *testing.B) {
-	benchmarkRead(b, func(r *Reader) {}, benchmarkCSVData)
-}
-
-func BenchmarkReadLargeFields(b *testing.B) {
-	benchmarkRead(b, nil, strings.Repeat(`xxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-xxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvv
-,,zzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-`, 3))
+	benchmarkRead(b, nil, benchmarkLSTreeData)
 }
 
 func BenchmarkReadReuseRecord(b *testing.B) {
-	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true }, benchmarkCSVData)
-}
-
-func BenchmarkReadReuseRecordWithFieldsPerRecord(b *testing.B) {
-	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true }, benchmarkCSVData)
-}
-
-func BenchmarkReadReuseRecordWithoutFieldsPerRecord(b *testing.B) {
-	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true }, benchmarkCSVData)
-}
-
-func BenchmarkReadReuseRecordLargeFields(b *testing.B) {
-	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true }, strings.Repeat(`xxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-xxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvv
-,,zzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-`, 3))
+	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true }, benchmarkLSTreeData)
 }
