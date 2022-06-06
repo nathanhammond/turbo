@@ -124,8 +124,8 @@ type UnixPathInterface interface {
 	unixPathStamp()
 
 	Rel(UnixPathInterface) (RelativeUnixPath, error)
-	ToSystemPath() SystemPathInterface
-	ToUnixPath() UnixPathInterface
+	//ToSystemPath() SystemPathInterface
+	//ToUnixPath() UnixPathInterface
 	ToString() string
 }
 
@@ -136,18 +136,18 @@ type SystemPathInterface interface {
 	systemPathStamp()
 
 	Rel(SystemPathInterface) (RelativeSystemPath, error)
-	ToSystemPath() SystemPathInterface
-	ToUnixPath() UnixPathInterface
+	// ToSystemPath() SystemPathInterface
+	//ToUnixPath() UnixPathInterface
 	ToString() string
 }
 
-// FilePathInterface specifies additional dimensions that a particular
+// filePathInterface specifies additional dimensions that a particular
 // object can have that are independent from each other.
-type FilePathInterface interface {
+type filePathInterface interface {
 	filePathStamp()
 
-	ToSystemPath() SystemPathInterface
-	ToUnixPath() UnixPathInterface
+	// ToSystemPath() SystemPathInterface
+	// ToUnixPath() UnixPathInterface
 	ToString() string
 }
 
@@ -171,7 +171,7 @@ func StringToSystemPath(path string) SystemPathInterface {
 	return RelativeSystemPath(filepath.FromSlash(path))
 }
 
-func toStringArray[T FilePathInterface](source []T) []string {
+func toStringArray[T filePathInterface](source []T) []string {
 	output := make([]string, len(source))
 	for index, path := range source {
 		output[index] = path.ToString()

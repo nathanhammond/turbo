@@ -13,14 +13,14 @@ func (RepoRelativeSystemPath) filePathStamp()     {}
 
 // ToSystemPath called on a RelativeSystemPath returns itself.
 // It exists to enable simpler code at call sites.
-func (p RepoRelativeSystemPath) ToSystemPath() SystemPathInterface {
-	return p
-}
+// func (p RepoRelativeSystemPath) ToSystemPath() SystemPathInterface {
+// 	return p
+// }
 
 // ToUnixPath converts a RepoRelativeSystemPath to a UnixPath.
-func (p RepoRelativeSystemPath) ToUnixPath() UnixPathInterface {
-	return RepoRelativeUnixPath(filepath.ToSlash(p.ToString()))
-}
+// func (p RepoRelativeSystemPath) ToUnixPath() UnixPathInterface {
+// 	return RepoRelativeUnixPath(filepath.ToSlash(p.ToString()))
+// }
 
 // Rel calculates the relative path between a RelativeSystemPath and any other SystemPath.
 func (p RepoRelativeSystemPath) Rel(basePath SystemPathInterface) (RelativeSystemPath, error) {
@@ -35,9 +35,9 @@ func (p RepoRelativeSystemPath) ToString() string {
 }
 
 // ToRepoRelativeUnixPath converts from RelativeSystemPath to RepoRelativeUnixPath.
-func (p RepoRelativeSystemPath) ToRepoRelativeUnixPath() RepoRelativeUnixPath {
-	return p.ToUnixPath().(RepoRelativeUnixPath)
-}
+// func (p RepoRelativeSystemPath) ToRepoRelativeUnixPath() RepoRelativeUnixPath {
+// 	return p.ToUnixPath().(RepoRelativeUnixPath)
+// }
 
 // ToRelativeSystemPath converts from RepoRelativeSystemPath to RelativeSystemPath.
 func (p RepoRelativeSystemPath) ToRelativeSystemPath() RelativeSystemPath {
