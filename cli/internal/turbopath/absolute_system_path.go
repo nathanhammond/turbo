@@ -13,9 +13,9 @@ func (AbsoluteSystemPath) filePathStamp()     {}
 
 // ToSystemPath called on a AbsoluteSystemPath returns itself.
 // It exists to enable simpler code at call sites.
-func (p AbsoluteSystemPath) ToSystemPath() SystemPathInterface {
-	return p
-}
+// func (p AbsoluteSystemPath) ToSystemPath() SystemPathInterface {
+// 	return p
+// }
 
 // ToUnixPath converts a AbsoluteSystemPath to a UnixPath.
 func (p AbsoluteSystemPath) ToUnixPath() UnixPathInterface {

@@ -15,7 +15,7 @@ func (AbsoluteUnixPath) unixPathStamp()     {}
 func (AbsoluteUnixPath) filePathStamp()     {}
 
 // ToSystemPath converts a AbsoluteUnixPath to a SystemPath.
-func (p AbsoluteUnixPath) ToSystemPath() SystemPathInterface {
+func (p AbsoluteUnixPath) ToSystemPath() AbsoluteSystemPath {
 	return AbsoluteSystemPath(filepath.FromSlash(p.ToString()))
 }
 
@@ -39,7 +39,7 @@ func (p AbsoluteUnixPath) ToString() string {
 
 // ToAbsoluteSystemPath converts from AbsoluteUnixPath to AbsoluteSystemPath.
 func (p AbsoluteUnixPath) ToAbsoluteSystemPath() AbsoluteSystemPath {
-	return p.ToSystemPath().(AbsoluteSystemPath)
+	return p.ToSystemPath() //.(AbsoluteSystemPath)
 }
 
 // Join appends relative path segments to this AbsoluteUnixPath.
