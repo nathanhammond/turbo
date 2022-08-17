@@ -3,10 +3,11 @@
 import * as path from "path";
 import execa from "execa";
 import fse from "fs-extra";
+import fs from "fs";
 import inquirer from "inquirer";
 import ora from "ora";
 import meow from "meow";
-import lt from "semver/functions/lt";
+import { gte, lt } from "semver";
 import gradient from "gradient-string";
 import checkForUpdate from "update-check";
 import chalk from "chalk";
@@ -136,13 +137,13 @@ async function run() {
   let relativeProjectDir = path.relative(process.cwd(), projectDir);
   let projectDirIsCurrentDir = relativeProjectDir === "";
   if (!projectDirIsCurrentDir) {
-    if (fse.existsSync(projectDir)) {
+    if (fse.existsSync(projectDir) && fs.readdirSync(projectDir).length !== 0) {
       console.log(
         `️🚨 Oops, "${relativeProjectDir}" already exists. Please try again with a different directory.`
       );
       process.exit(1);
     } else {
-      await fse.mkdir(projectDir);
+      await fse.mkdirp(projectDir);
     }
   }
 
@@ -150,14 +151,21 @@ async function run() {
   let sharedTemplate = path.resolve(__dirname, "../templates", `_shared_ts`);
   await fse.copy(sharedTemplate, projectDir);
 
-  // copy the server template
-  let serverTemplate = path.resolve(
+  let packageManager = answers.packageManager;
+  const packageManagerVersion = getPackageManagerVersion(packageManager);
+
+  if (packageManager.name === "yarn" && gte(packageManagerVersion, "2.0.0")) {
+    packageManager = PACKAGE_MANAGERS["berry"];
+  }
+
+  // copy the per-package-manager template
+  let packageManagerTemplate = path.resolve(
     __dirname,
     "../templates",
-    answers.packageManager.command
+    packageManager.name
   );
-  if (fse.existsSync(serverTemplate)) {
-    await fse.copy(serverTemplate, projectDir, { overwrite: true });
+  if (fse.existsSync(packageManagerTemplate)) {
+    await fse.copy(packageManagerTemplate, projectDir, { overwrite: true });
   }
 
   // rename dotfiles
@@ -179,9 +187,7 @@ async function run() {
     };
   });
 
-  sharedPkg.packageManager = `${
-    answers.packageManager.command
-  }@${getPackageManagerVersion(answers.packageManager)}`;
+  sharedPkg.packageManager = `${packageManager.command}@${packageManagerVersion}`;
   sharedPkg.name = projectName;
 
   // write package.json
@@ -221,10 +227,7 @@ async function run() {
     let supportsRegistryArg = false;
     try {
       // yarn >= v2 only support specifying a registry via config (no cli param)
-      supportsRegistryArg = lt(
-        getPackageManagerVersion(answers.packageManager),
-        "2.0.0"
-      );
+      supportsRegistryArg = lt(packageManagerVersion, "2.0.0");
     } catch (err) {}
 
     const installArgs = ["install"];
@@ -232,11 +235,11 @@ async function run() {
       // Using the official npm registry for installation could be very
       // slow for users in different regions (like China), so use the
       // user customized registry from the config instead
-      const npmRegistry = await getNpmRegistry(answers.packageManager);
+      const npmRegistry = await getNpmRegistry(packageManager);
       installArgs.push(`--registry=${npmRegistry}`);
     }
 
-    await execa(`${answers.packageManager.command}`, installArgs, {
+    await execa(`${packageManager.command}`, installArgs, {
       stdio: "ignore",
       cwd: projectDir,
     });
@@ -280,28 +283,24 @@ async function run() {
   }
 
   console.log();
-  console.log(chalk.cyan(`  ${answers.packageManager.command} run build`));
+  console.log(chalk.cyan(`  ${packageManager.command} run build`));
   console.log(`     Build all apps and packages`);
   console.log();
-  console.log(chalk.cyan(`  ${answers.packageManager.command} run dev`));
+  console.log(chalk.cyan(`  ${packageManager.command} run dev`));
   console.log(`     Develop all apps and packages`);
   console.log();
   console.log(`Turborepo will cache locally by default. For an additional`);
   console.log(`speed boost, enable Remote Caching with Vercel by`);
   console.log(`entering the following command:`);
   console.log();
-  console.log(
-    chalk.cyan(`  ${getNpxCommand(answers.packageManager)} turbo login`)
-  );
+  console.log(chalk.cyan(`  ${getNpxCommand(packageManager)} turbo login`));
   console.log();
   console.log(`We suggest that you begin by typing:`);
   console.log();
   if (!projectDirIsCurrentDir) {
     console.log(`  ${chalk.cyan("cd")} ${relativeProjectDir}`);
   }
-  console.log(
-    chalk.cyan(`  ${getNpxCommand(answers.packageManager)} turbo login`)
-  );
+  console.log(chalk.cyan(`  ${getNpxCommand(packageManager)} turbo login`));
   console.log();
 }
 
