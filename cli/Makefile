@@ -109,13 +109,13 @@ publish: clean prepublish build
 	git format-patch HEAD~1 --stdout | cat
 
 	# Publishes the native npm modules.
-	goreleaser release --rm-dist
+	# goreleaser release --rm-dist
 
 	# Publish the remaining JS packages in order to avoid race conditions.
-	cd $(CLI_DIR)/../packages/turbo && npm publish --tag $(TURBO_TAG)
-	# cd $(CLI_DIR)/../packages/turbo-ignore && npm publish --tag $(TURBO_TAG)
-	cd $(CLI_DIR)/../packages/create-turbo && npm publish --tag $(TURBO_TAG)
-	cd $(CLI_DIR)/../packages/turbo-codemod && npm publish --tag $(TURBO_TAG)
+	# cd $(CLI_DIR)/../packages/turbo && npm publish --tag $(TURBO_TAG)
+	# # cd $(CLI_DIR)/../packages/turbo-ignore && npm publish --tag $(TURBO_TAG)
+	# cd $(CLI_DIR)/../packages/create-turbo && npm publish --tag $(TURBO_TAG)
+	# cd $(CLI_DIR)/../packages/turbo-codemod && npm publish --tag $(TURBO_TAG)
 
 	git push -f origin main "v$(TURBO_VERSION)"
 
