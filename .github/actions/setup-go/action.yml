@@ -5,7 +5,7 @@ inputs:
     description: "GitHub token. You can pass secrets.GITHUB_TOKEN"
     required: true
   go-version:
-    description: "Change Go version"
+    description: "Set Go version"
     required: false
     default: "1.18"
 runs:
