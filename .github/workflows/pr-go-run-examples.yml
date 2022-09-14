@@ -1,8 +1,5 @@
 name: CLI Run Examples
 
-env:
-  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -34,7 +31,6 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      # TODO: what is this for? The other Go workflows don't need it
       - name: Install Sponge
         shell: bash
         run: |
@@ -45,19 +41,15 @@ jobs:
           fi
 
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 2
 
-      - uses: ./.github/actions/setup-deps
+      - uses: ./.github/actions/setup-go
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-          setup-node: false # TODO: Does this need to be customized in this workflow?
 
       - uses: pnpm/action-setup@v2.2.2
         with:
           version: 7.2.1
 
-      # TODO: Is this necessary? The other Go jobs don't include this
       - name: Make sure pnpm always has a cache
         shell: bash
         run: |
