@@ -1,7 +1,4 @@
-name: Stage Release
-
-env:
-  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+name: Create Release Branch
 
 on:
   workflow_dispatch:

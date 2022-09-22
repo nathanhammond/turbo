@@ -1,4 +1,4 @@
-name: Release
+name: Release From Branch
 
 env:
   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -57,6 +57,7 @@ jobs:
           name: turbo-artifacts-darwin
           path: cli/dist-darwin
 
+  # compiles linux and windows in a container
   cross:
     needs: [smoke-test]
     runs-on: ubuntu-latest
