@@ -7,98 +7,97 @@ on:
   workflow_dispatch:
     inputs:
       release_branch:
-        description: "Git reference to commit to run release from"
+        description: "Staging branch to run release from"
 
 jobs:
-  # smoke-test:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #       with:
-  #         ref: ${{ inputs.release_branch }}
-  #     - uses: ./.github/actions/setup-node
-  #       with:
-  #         enable-corepack: false
-  #     - uses: ./.github/actions/setup-go
-  #       with:
-  #         github-token: "${{ secrets.GITHUB_TOKEN }}"
-  #     - name: Test
-  #       run: pnpm -- turbo run test --filter=cli --color
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.release_branch }}
+      - uses: ./.github/actions/setup-node
+        with:
+          enable-corepack: false
+      - uses: ./.github/actions/setup-go
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Test
+        run: pnpm -- turbo run test --filter=cli --color
 
-  # darwin:
-  #   needs: [smoke-test]
-  #   runs-on: macos-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #       with:
-  #         ref: ${{ inputs.release_branch }}
-  #     - run: git fetch origin --tags
-  #     - uses: ./.github/actions/setup-node
-  #       with:
-  #         enable-corepack: false
-  #     - uses: ./.github/actions/setup-go
-  #       with:
-  #         github-token: "${{ secrets.GITHUB_TOKEN }}"
-  #     - name: Install GoReleaser
-  #       uses: goreleaser/goreleaser-action@v3
-  #       with:
-  #         distribution: goreleaser-pro
-  #         version: latest
-  #         install-only: true
-  #       env:
-  #         GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-  #     - name: Build Artifacts
-  #       run: cd cli && make publish-turbo-darwin
-  #       env:
-  #         GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-  #     - name: Upload Artifacts
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: turbo-artifacts-darwin
-  #         path: cli/dist-darwin
+  darwin:
+    needs: [smoke-test]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.release_branch }}
+      - run: git fetch origin --tags
+      - uses: ./.github/actions/setup-node
+        with:
+          enable-corepack: false
+      - uses: ./.github/actions/setup-go
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@v3
+        with:
+          distribution: goreleaser-pro
+          version: latest
+          install-only: true
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+      - name: Build Artifacts
+        run: cd cli && make publish-turbo-darwin
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: turbo-artifacts-darwin
+          path: cli/dist-darwin
 
-  # cross:
-  #   needs: [smoke-test]
-  #   runs-on: ubuntu-latest
-  #   container:
-  #     image: docker://ghcr.io/gsoltis/turbo-cross:v1.18.5
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #       with:
-  #         ref: "${{ inputs.release_branch }}"
-  #     - run: git fetch origin --tags
-  #     - uses: ./.github/actions/setup-node
-  #       with:
-  #         enable-corepack: false
-  #     - uses: ./.github/actions/setup-go
-  #       with:
-  #         github-token: "${{ secrets.GITHUB_TOKEN }}"
-  #     - name: Install GoReleaser
-  #       uses: goreleaser/goreleaser-action@v3
-  #       with:
-  #         distribution: goreleaser-pro
-  #         version: latest
-  #         install-only: true
-  #       env:
-  #         GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-  #     - name: Build Artifacts
-  #       run: cd cli && make publish-turbo-cross
-  #       env:
-  #         GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-  #     - name: Upload Artifacts
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: turbo-artifacts-cross
-  #         path: cli/dist-cross
+  cross:
+    needs: [smoke-test]
+    runs-on: ubuntu-latest
+    container:
+      image: docker://ghcr.io/gsoltis/turbo-cross:v1.18.5
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: "${{ inputs.release_branch }}"
+      - run: git fetch origin --tags
+      - uses: ./.github/actions/setup-node
+        with:
+          enable-corepack: false
+      - uses: ./.github/actions/setup-go
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@v3
+        with:
+          distribution: goreleaser-pro
+          version: latest
+          install-only: true
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+      - name: Build Artifacts
+        run: cd cli && make publish-turbo-cross
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: turbo-artifacts-cross
+          path: cli/dist-cross
 
   final-publish:
-    #needs: [cross, darwin]
+    needs: [cross, darwin]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           ref: "${{ inputs.release_branch }}"
-        #   token: ${{ secrets.TURBOBOT }}
       - run: git fetch origin --tags
       - uses: ./.github/actions/setup-node
         with:
@@ -112,42 +111,36 @@ jobs:
           git config --global user.name 'Turbobot'
           git config --global user.email 'turbobot@vercel.com'
 
-      # - name: Install GoReleaser
-      #   uses: goreleaser/goreleaser-action@v3
-      #   with:
-      #     distribution: goreleaser-pro
-      #     version: latest
-      #     install-only: true
-      #   env:
-      #     GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@v3
+        with:
+          distribution: goreleaser-pro
+          version: latest
+          install-only: true
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
-      # - name: Download Cross-compiled Artifacts
-      #   uses: actions/download-artifact@v3
-      #   with:
-      #     name: turbo-artifacts-cross
-      #     path: cli/dist-cross
+      - name: Download Cross-compiled Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: turbo-artifacts-cross
+          path: cli/dist-cross
 
-      # - name: Download Darwin Artifacts
-      #   uses: actions/download-artifact@v3
-      #   with:
-      #     name: turbo-artifacts-darwin
-      #     path: cli/dist-darwin
+      - name: Download Darwin Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: turbo-artifacts-darwin
+          path: cli/dist-darwin
 
-      # - name: Combine Artifacts
-      #   run: cd cli && mkdir -p dist-combined && cp -a dist-cross/. dist-combined/ && cp -a dist-darwin/. dist-combined/
-      #   env:
-      #     GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+      - name: Combine Artifacts
+        run: cd cli && mkdir -p dist-combined && cp -a dist-cross/. dist-combined/ && cp -a dist-darwin/. dist-combined/
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
-      # - name: Release
-      #   run: cd cli && make publish
-      #   env:
-      #     GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-      # - name: Load Base Ref
-      #   run: |
-      #     git fetch --no-tags --progress --no-recurse-submodules --unshallow --force origin
-      #     base_ref=$(git rev-parse $(git rev-list origin/main..HEAD | head -n 1)^1)
-      #     echo $base_ref
-      #     echo base_ref=${base_ref} >> $GITHUB_ENV
+      - name: Release
+        run: cd cli && make publish
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - uses: repo-sync/pull-request@v2
         with:
@@ -158,18 +151,3 @@ jobs:
           pr_reviewer: ${{ github.actor }},gsoltis
           pr_allow_empty: true
           github_token: ${{ secrets.TURBOBOT }}
-
-      # - name: Create Pull Request
-      #   uses: peter-evans/create-pull-request@v4
-      #   with:
-      #     token: ${{ secrets.TURBOBOT }}
-      #     commit-message: Merge release commit
-      #     author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
-      #     base: ${{ env.base_ref }}
-      #     branch: merge-${{ inputs.release_branch }}
-      #     delete-branch: true
-      #     title: "Merge release commit"
-      #     body: |
-      #       Merge release commit for ${{ inputs.release_branch }}
-      #     reviewers: ${{ github.actor }},gsoltis
-      #     draft: false
