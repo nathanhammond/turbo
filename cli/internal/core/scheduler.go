@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vercel/turborepo/cli/internal/dagextend"
 	"github.com/vercel/turborepo/cli/internal/util"
 
 	"github.com/pyr-sh/dag"
@@ -20,6 +21,10 @@ type Task struct {
 	Deps util.Set
 	// TopoDeps are dependencies across packages within the same topological graph (e.g. parent `build` -> child `build`) */
 	TopoDeps util.Set
+	// TopoDevDeps are dependencies across packages within the same topological graph (e.g. parent `build` -> child `build`) */
+	TopoDevDeps util.Set
+	// TopoProdDeps are dependencies across packages within the same topological graph (e.g. parent `build` -> child `build`) */
+	TopoProdDeps util.Set
 }
 
 type Visitor = func(taskID string) error
@@ -163,10 +168,24 @@ func (p *Scheduler) generateTaskGraph(pkgs []string, taskNames []string, tasksOn
 					}
 					return false
 				})
+				task.TopoDevDeps = task.TopoDevDeps.Filter(func(d interface{}) bool {
+					for _, target := range taskNames {
+						return fmt.Sprintf("%v", d) == target
+					}
+					return false
+				})
+				task.TopoProdDeps = task.TopoProdDeps.Filter(func(d interface{}) bool {
+					for _, target := range taskNames {
+						return fmt.Sprintf("%v", d) == target
+					}
+					return false
+				})
 			}
 
 			toTaskId := taskId
 			hasTopoDeps := task.TopoDeps.Len() > 0 && p.TopologicGraph.DownEdges(pkg).Len() > 0
+			hasTopoDevDeps := task.TopoDevDeps.Len() > 0 && p.TopologicGraph.DownEdges(pkg).Len() > 0
+			hasTopoProdDeps := task.TopoProdDeps.Len() > 0 && p.TopologicGraph.DownEdges(pkg).Len() > 0
 			hasDeps := deps.Len() > 0
 			hasPackageTaskDeps := false
 			if _, ok := packageTasksDepsMap[toTaskId]; ok {
@@ -182,6 +201,58 @@ func (p *Scheduler) generateTaskGraph(pkgs []string, taskNames []string, tasksOn
 						p.TaskGraph.Add(fromTaskId)
 						p.TaskGraph.Add(toTaskId)
 						p.TaskGraph.Connect(dag.BasicEdge(toTaskId, fromTaskId))
+						traversalQueue = append(traversalQueue, fromTaskId)
+					}
+				}
+			}
+
+			if hasTopoDevDeps {
+				depPkgs := p.TopologicGraph.DownEdges(pkg)
+				depPkgs = depPkgs.Filter(func(edge interface{}) bool {
+					switch edgeType := edge.(type) {
+					case dagextend.NamedEdge:
+						return edgeType.Name == "dev"
+					default:
+						return false
+					}
+				})
+				for _, from := range task.TopoDevDeps.UnsafeListOfStrings() {
+					// add task dep from all the package deps within repo
+					for depPkg := range depPkgs {
+						fromTaskId := util.GetTaskId(depPkg, from)
+						p.TaskGraph.Add(fromTaskId)
+						p.TaskGraph.Add(toTaskId)
+						p.TaskGraph.Connect(&dagextend.NamedEdge{
+							Name: "dev",
+							S:    toTaskId,
+							T:    fromTaskId,
+						})
+						traversalQueue = append(traversalQueue, fromTaskId)
+					}
+				}
+			}
+
+			if hasTopoProdDeps {
+				depPkgs := p.TopologicGraph.DownEdges(pkg)
+				depPkgs = depPkgs.Filter(func(edge interface{}) bool {
+					switch edgeType := edge.(type) {
+					case dagextend.NamedEdge:
+						return edgeType.Name == "prod"
+					default:
+						return false
+					}
+				})
+				for _, from := range task.TopoProdDeps.UnsafeListOfStrings() {
+					// add task dep from all the package deps within repo
+					for depPkg := range depPkgs {
+						fromTaskId := util.GetTaskId(depPkg, from)
+						p.TaskGraph.Add(fromTaskId)
+						p.TaskGraph.Add(toTaskId)
+						p.TaskGraph.Connect(&dagextend.NamedEdge{
+							Name: "prod",
+							S:    toTaskId,
+							T:    fromTaskId,
+						})
 						traversalQueue = append(traversalQueue, fromTaskId)
 					}
 				}
@@ -208,7 +279,7 @@ func (p *Scheduler) generateTaskGraph(pkgs []string, taskNames []string, tasksOn
 				}
 			}
 
-			if !hasDeps && !hasTopoDeps && !hasPackageTaskDeps {
+			if !hasDeps && !hasTopoDeps && !hasTopoDevDeps && !hasTopoProdDeps && !hasPackageTaskDeps {
 				p.TaskGraph.Add(ROOT_NODE_NAME)
 				p.TaskGraph.Add(toTaskId)
 				p.TaskGraph.Connect(dag.BasicEdge(toTaskId, ROOT_NODE_NAME))

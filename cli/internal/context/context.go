@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/vercel/turborepo/cli/internal/core"
+	"github.com/vercel/turborepo/cli/internal/dagextend"
 	"github.com/vercel/turborepo/cli/internal/fs"
 	"github.com/vercel/turborepo/cli/internal/lockfile"
 	"github.com/vercel/turborepo/cli/internal/packagemanager"
@@ -224,6 +225,11 @@ func (c *Context) resolveWorkspaceRootDeps(rootPackageJSON *fs.PackageJSON) erro
 	return nil
 }
 
+type namedVersion struct {
+	version string
+	depType string
+}
+
 // populateTopologicGraphForPackageJSON fills in the edges for the dependencies of the given package
 // that are within the monorepo, as well as collecting and hashing the dependencies of the package
 // that are not within the monorepo. The vertexName is used to override the package name in the graph.
@@ -231,29 +237,39 @@ func (c *Context) resolveWorkspaceRootDeps(rootPackageJSON *fs.PackageJSON) erro
 func (c *Context) populateTopologicGraphForPackageJSON(pkg *fs.PackageJSON, rootpath string, vertexName string) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	depMap := make(map[string]string)
+	depMap := make(map[string]namedVersion)
 	internalDepsSet := make(dag.Set)
 	externalUnresolvedDepsSet := make(dag.Set)
 	externalDepSet := mapset.NewSet()
 	pkg.UnresolvedExternalDeps = make(map[string]string)
 
 	for dep, version := range pkg.DevDependencies {
-		depMap[dep] = version
+		depMap[dep] = namedVersion{
+			version: version,
+			depType: "dev",
+		}
 	}
 
 	for dep, version := range pkg.OptionalDependencies {
-		depMap[dep] = version
+		depMap[dep] = namedVersion{
+			version: version,
+			depType: "optional",
+		}
 	}
 
 	for dep, version := range pkg.Dependencies {
-		depMap[dep] = version
+		depMap[dep] = namedVersion{
+			version: version,
+			depType: "prod",
+		}
 	}
 
 	// split out internal vs. external deps
 	for depName, depVersion := range depMap {
-		if item, ok := c.PackageInfos[depName]; ok && isWorkspaceReference(item.Version, depVersion, pkg.Dir.ToStringDuringMigration(), rootpath) {
+		if item, ok := c.PackageInfos[depName]; ok && isWorkspaceReference(item.Version, depVersion.version, pkg.Dir.ToStringDuringMigration(), rootpath) {
 			internalDepsSet.Add(depName)
 			c.TopologicalGraph.Connect(dag.BasicEdge(vertexName, depName))
+			c.TopologicalGraph.Connect(&dagextend.NamedEdge{Name: depVersion.depType, S: vertexName, T: depName})
 		} else {
 			externalUnresolvedDepsSet.Add(depName)
 		}

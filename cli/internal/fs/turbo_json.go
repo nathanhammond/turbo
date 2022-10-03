@@ -16,9 +16,11 @@ import (
 )
 
 const (
-	configFile                   = "turbo.json"
-	envPipelineDelimiter         = "$"
-	topologicalPipelineDelimiter = "^"
+	configFile                       = "turbo.json"
+	envPipelineDelimiter             = "$"
+	topologicalPipelineDelimiter     = "^"
+	topologicalDevPipelineDelimiter  = "👨‍💻"
+	topologicalProdPipelineDelimiter = "🎬"
 )
 
 var defaultOutputs = TaskOutputs{Inclusions: []string{"dist/**/*", "build/**/*"}}
@@ -63,13 +65,15 @@ type Pipeline map[string]TaskDefinition
 
 // TaskDefinition is a representation of the configFile pipeline for further computation.
 type TaskDefinition struct {
-	Outputs                 TaskOutputs
-	ShouldCache             bool
-	EnvVarDependencies      []string
-	TopologicalDependencies []string
-	TaskDependencies        []string
-	Inputs                  []string
-	OutputMode              util.TaskOutputMode
+	Outputs                     TaskOutputs
+	ShouldCache                 bool
+	EnvVarDependencies          []string
+	TopologicalDependencies     []string
+	TopologicalDevDependencies  []string
+	TopologicalProdDependencies []string
+	TaskDependencies            []string
+	Inputs                      []string
+	OutputMode                  util.TaskOutputMode
 }
 
 // LoadTurboConfig loads, or optionally, synthesizes a TurboJSON instance
@@ -244,6 +248,8 @@ func (c *TaskDefinition) UnmarshalJSON(data []byte) error {
 
 	envVarDependencies := make(util.Set)
 	c.TopologicalDependencies = []string{}
+	c.TopologicalDevDependencies = []string{}
+	c.TopologicalProdDependencies = []string{}
 	c.TaskDependencies = []string{}
 
 	for _, dependency := range rawPipeline.DependsOn {
@@ -252,12 +258,18 @@ func (c *TaskDefinition) UnmarshalJSON(data []byte) error {
 			envVarDependencies.Add(strings.TrimPrefix(dependency, envPipelineDelimiter))
 		} else if strings.HasPrefix(dependency, topologicalPipelineDelimiter) {
 			c.TopologicalDependencies = append(c.TopologicalDependencies, strings.TrimPrefix(dependency, topologicalPipelineDelimiter))
+		} else if strings.HasPrefix(dependency, topologicalDevPipelineDelimiter) {
+			c.TopologicalDevDependencies = append(c.TopologicalDevDependencies, strings.TrimPrefix(dependency, topologicalDevPipelineDelimiter))
+		} else if strings.HasPrefix(dependency, topologicalProdPipelineDelimiter) {
+			c.TopologicalProdDependencies = append(c.TopologicalProdDependencies, strings.TrimPrefix(dependency, topologicalProdPipelineDelimiter))
 		} else {
 			c.TaskDependencies = append(c.TaskDependencies, dependency)
 		}
 	}
 	sort.Strings(c.TaskDependencies)
 	sort.Strings(c.TopologicalDependencies)
+	sort.Strings(c.TopologicalDevDependencies)
+	sort.Strings(c.TopologicalProdDependencies)
 
 	// Append env key into EnvVarDependencies
 	for _, value := range rawPipeline.Env {

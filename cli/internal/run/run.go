@@ -471,6 +471,8 @@ func buildTaskGraph(topoGraph *dag.AcyclicGraph, pipeline fs.Pipeline, rs *runSp
 	engine := core.NewScheduler(topoGraph)
 	for taskName, taskDefinition := range pipeline {
 		topoDeps := make(util.Set)
+		topoDevDeps := make(util.Set)
+		topoProdDeps := make(util.Set)
 		deps := make(util.Set)
 		isPackageTask := util.IsPackageTask(taskName)
 		for _, dependency := range taskDefinition.TaskDependencies {
@@ -486,10 +488,18 @@ func buildTaskGraph(topoGraph *dag.AcyclicGraph, pipeline fs.Pipeline, rs *runSp
 		for _, dependency := range taskDefinition.TopologicalDependencies {
 			topoDeps.Add(dependency)
 		}
+		for _, dependency := range taskDefinition.TopologicalDevDependencies {
+			topoDevDeps.Add(dependency)
+		}
+		for _, dependency := range taskDefinition.TopologicalProdDependencies {
+			topoProdDeps.Add(dependency)
+		}
 		engine.AddTask(&core.Task{
-			Name:     taskName,
-			TopoDeps: topoDeps,
-			Deps:     deps,
+			Name:         taskName,
+			TopoDeps:     topoDeps,
+			TopoDevDeps:  topoDevDeps,
+			TopoProdDeps: topoProdDeps,
+			Deps:         deps,
 		})
 	}
 
