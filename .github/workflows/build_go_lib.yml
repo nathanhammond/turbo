@@ -48,7 +48,7 @@ jobs:
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       - name: Build Artifacts
-        run: cd cli && make publish-turbo-darwin
+        run: cd cli && make snapshot-lib-turbo-darwin
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       - name: Upload Artifacts
@@ -62,7 +62,7 @@ jobs:
     needs: [smoke-test]
     runs-on: ubuntu-latest
     container:
-      image: docker://ghcr.io/gsoltis/turbo-cross:v1.18.5
+      image: docker://ghcr.io/vercel/turbo-cross:v1.18.5
     steps:
       - uses: actions/checkout@v3
         with:
@@ -83,7 +83,7 @@ jobs:
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       - name: Build Artifacts
-        run: cd cli && make publish-turbo-cross
+        run: cd cli && make snapshot-lib-turbo-cross
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       - name: Upload Artifacts

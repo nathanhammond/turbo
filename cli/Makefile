@@ -114,6 +114,14 @@ snapshot-turbo-darwin:
 snapshot-turbo: clean
 	goreleaser release --snapshot --rm-dist -f combined-release.yml
 
+.PHONY: snapshot-lib-turbo-darwin
+snapshot-lib-turbo-darwin:
+	goreleaser release --snapshot --rm-dist -f darwin-lib.yml
+
+.PHONY: snapshot-lib-turbo-cross
+snapshot-lib-turbo-cross:
+	goreleaser release --snapshot --rm-dist -f cross-lib.yml
+
 .PHONY: stage-release
 stage-release: cmd/turbo/version.go
 	echo "Version: $(TURBO_VERSION)"
