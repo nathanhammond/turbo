@@ -5,16 +5,18 @@ on:
 
 jobs:
   build-native:
-    fail-fast: true
-    matrix:
-      settings:
-        - host: macos-latest
-          target: "x86_64-apple-darwin"
-          lib-cache-key: turbo-lib-darwin
-          # build: |
-          #   npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-          #   turbo run build-native --cache-dir=".turbo" -- --release
-          #   strip -x packages/next-swc/native/next-swc.*.node
+    name: "Build Native"
+    strategy:
+      fail-fast: true
+      matrix:
+        settings:
+          - host: macos-latest
+            target: "x86_64-apple-darwin"
+            lib-cache-key: turbo-lib-darwin
+            # build: |
+            #   npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
+            #   turbo run build-native --cache-dir=".turbo" -- --release
+            #   strip -x packages/next-swc/native/next-swc.*.node
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
