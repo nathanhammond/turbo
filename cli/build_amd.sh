@@ -2,7 +2,7 @@
 
 set -e
 
-IMG=ghcr.io/gsoltis/turbo-cross:v1.18.5-amd64
+IMG=ghcr.io/vercel/turbo-cross:v1.18.5-amd64
 #IMG=ghcr.io/gsoltis/goreleaser-cross:v1.18.5-amd64
 
 docker run \
