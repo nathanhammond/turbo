@@ -7,11 +7,14 @@ jobs:
   build-native:
     name: "Build Native"
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         settings:
           - host: macos-latest
             target: "x86_64-apple-darwin"
+            lib-cache-key: turbo-lib-darwin
+          - host: macos-latest
+            target: "aarch64-apple-darwin"
             lib-cache-key: turbo-lib-darwin
             # build: |
             #   npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
@@ -19,6 +22,9 @@ jobs:
             #   strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: "x86_64-unknown-linux-gnu"
+            lib-cache-key: turbo-lib-cross
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
             lib-cache-key: turbo-lib-cross
             #docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             # build: >-
@@ -59,10 +65,6 @@ jobs:
         id: download-artifact
         uses: dawidd6/action-download-artifact@v2
         with:
-          # Optional, GitHub token, a Personal Access Token with `public_repo` scope if needed
-          # Required, if the artifact is from a different repo
-          # Required, if the repo is private a Personal Access Token with `repo` scope is needed
-          #github_token: ${{secrets.GITHUB_TOKEN}}
           # Optional, workflow file name or ID
           # If not specified, will be inferred from run_id (if run_id is specified), or will be the current workflow
           workflow: build_go_lib.yml
