@@ -35,7 +35,7 @@ fn expect_release_lib() -> String {
         build_target::Arch::X86_64 => "amd64_v1",
         _ => panic!("unsupported target {}", target.triple)
     };
-    let mut dir = PathBuf::from(format!("../cli/dist-{}", dist));
+    let mut dir = PathBuf::from("libturbo");
     dir.push(format!("turbo_{}_{}", platform, arch));
     dir.push("lib");
     dir.to_string_lossy().to_string()

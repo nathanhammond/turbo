@@ -1,4 +1,4 @@
-name: Release Shim From Branch
+name: Build Go Library
 
 env:
   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -54,7 +54,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: turbo-artifacts-darwin
+          name: turbo-lib-darwin
           path: cli/dist-darwin
 
   # compiles linux and windows in a container
@@ -89,10 +89,8 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: turbo-artifacts-cross
+          name: turbo-lib-cross
           path: cli/dist-cross
-
-  
 
   # final-publish:
   #   needs: [cross, darwin]
