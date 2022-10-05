@@ -36,7 +36,8 @@ fn expect_release_lib() -> String {
         _ => panic!("unsupported target {}", target.triple)
     };
     let mut dir = PathBuf::from("libturbo");
-    dir.push(format!("turbo_{}_{}", platform, arch));
+    // format is ${BUILD_ID}_${OS}_${ARCH}. Build id is, for goreleaser reasons, turbo-${OS}
+    dir.push(format!("turbo-{}_{}_{}", platform, platform, arch));
     dir.push("lib");
     dir.to_string_lossy().to_string()
 }

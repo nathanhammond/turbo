@@ -7,7 +7,7 @@ before:
 dist: dist-darwin
 
 builds:
-  - id: turbo
+  - id: turbo-darwin
     main: ./cmd/turbo
     binary: lib/libturbo.a
     flags:
