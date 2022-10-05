@@ -117,4 +117,4 @@ jobs:
       #     path: shim/libturbo
 
       - name: Build
-        run: cd shim && cargo build --release --platform ${{ matrix.settings.target }}
+        run: cd shim && cargo build --release --target ${{ matrix.settings.target }}
