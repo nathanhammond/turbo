@@ -27,7 +27,7 @@ jobs:
             target: "aarch64-unknown-linux-gnu"
             lib-cache-key: turbo-lib-cross
             setup: |
-              apt-get install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+              sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
             rustflags: 'RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc"'
           - host: windows-latest
             target: x86_64-pc-windows-gnu
