@@ -26,6 +26,9 @@ jobs:
           - host: ubuntu-latest
             target: "aarch64-unknown-linux-gnu"
             lib-cache-key: turbo-lib-cross
+            setup: |
+              apt-get install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+            rustflags: 'RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc"'
           - host: windows-latest
             target: x86_64-pc-windows-gnu
             lib-cache-key: turbo-lib-cross
@@ -120,6 +123,9 @@ jobs:
       #   with:
       #     name: ${{ matrix.settings.lib-cache-key }}
       #     path: shim/libturbo
+      - name: Build Setup
+        if: ${{ matrix.settings.setup }}
+        run: ${{ matrix.settings.setup }}
 
       - name: Build
-        run: cd shim && cargo build --release --target ${{ matrix.settings.target }}
+        run: cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
