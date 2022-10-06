@@ -16,10 +16,6 @@ jobs:
           - host: macos-latest
             target: "aarch64-apple-darwin"
             lib-cache-key: turbo-lib-darwin
-            # build: |
-            #   npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-            #   turbo run build-native --cache-dir=".turbo" -- --release
-            #   strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: "x86_64-unknown-linux-gnu"
             lib-cache-key: turbo-lib-cross
@@ -32,15 +28,6 @@ jobs:
           - host: windows-latest
             target: x86_64-pc-windows-gnu
             lib-cache-key: turbo-lib-cross
-            #docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
-            # build: >-
-            #   set -e &&
-            #   rustup toolchain install "${RUST_TOOLCHAIN}" &&
-            #   rustup default "${RUST_TOOLCHAIN}" &&
-            #   rustup target add x86_64-unknown-linux-gnu &&
-            #   npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-            #   turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
-            #   strip packages/next-swc/native/next-swc.*.node
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
@@ -81,18 +68,8 @@ jobs:
           #   "completed", "in_progress", "queued"
           # Use the empty string ("") to ignore status or conclusion in the search
           workflow_conclusion: success
-          # Optional, will get head commit SHA
-          #pr: ${{github.event.pull_request.number}}
-          # Optional, no need to specify if PR is
-          #commit: ${{github.event.pull_request.head.sha}}
           # Optional, will use the specified branch. Defaults to all branches
           branch: main
-          # Optional, defaults to all types
-          #event: push
-          # Optional, will use specified workflow run
-          #run_id: 1122334455
-          # Optional, run number from the workflow
-          #run_number: 34
           # Optional, uploaded artifact name,
           # will download all artifacts if not specified
           # and extract them into respective subdirectories
@@ -100,24 +77,13 @@ jobs:
           name: ${{ matrix.settings.lib-cache-key }}
           # Optional, a directory where to extract artifact(s), defaults to the current directory
           path: shim/libturbo
-          # Optional, defaults to current repo
-          #repo: ${{ github.repository }}
-          # Optional, check the workflow run to whether it has an artifact
-          # then will get the last available artifact from the previous workflow
-          # default false, just try to download from the last one
-          #check_artifacts:  false
-          # Optional, search for the last workflow run whose stored an artifact named as in `name` input
-          # default false
-          #search_artifacts: false
-          # Optional, choose to skip unpacking the downloaded artifact(s)
-          # default false
-          #skip_unpack: false
           # Optional, choose how to exit the action if no artifact is found
           # can be one of:
           #  "fail", "warn", "ignore"
           # default fail
           if_no_artifact_found: fail
 
+      # TODO: re-enable this instead of the above when this runs together with the go library build
       # - name: Download Cross-compiled Artifacts
       #   uses: actions/download-artifact@v3
       #   with:
@@ -129,3 +95,9 @@ jobs:
 
       - name: Build
         run: cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: shim-${{ matrix.settings.target }}
+          path: shim/target
