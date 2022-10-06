@@ -10,24 +10,26 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          - host: macos-latest
-            target: "x86_64-apple-darwin"
-            lib-cache-key: turbo-lib-darwin
-          - host: macos-latest
-            target: "aarch64-apple-darwin"
-            lib-cache-key: turbo-lib-darwin
+          # - host: macos-latest
+          #   target: "x86_64-apple-darwin"
+          #   lib-cache-key: turbo-lib-darwin
+          # - host: macos-latest
+          #   target: "aarch64-apple-darwin"
+          #   lib-cache-key: turbo-lib-darwin
           - host: ubuntu-latest
             target: "x86_64-unknown-linux-gnu"
             lib-cache-key: turbo-lib-cross
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
           - host: ubuntu-latest
             target: "aarch64-unknown-linux-gnu"
             lib-cache-key: turbo-lib-cross
-            setup: |
-              sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
-            rustflags: 'RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc"'
-          - host: windows-latest
-            target: x86_64-pc-windows-gnu
-            lib-cache-key: turbo-lib-cross
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+            # setup: |
+            #   sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+            # rustflags: 'RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc"'
+          # - host: windows-latest
+          #   target: x86_64-pc-windows-gnu
+          #   lib-cache-key: turbo-lib-cross
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
@@ -94,6 +96,11 @@ jobs:
         run: ${{ matrix.settings.setup }}
 
       - name: Build
+        if: ${{ !matrix.settings.docker }}
+        run: cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
+
+      - name: Build in Docker
+        if: ${{ matrix.settings.docker }}
         run: cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
 
       - name: Upload Artifacts
