@@ -24,8 +24,8 @@ jobs:
             target: "aarch64-unknown-linux-gnu"
             lib-cache-key: turbo-lib-cross
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
-            # setup: |
-            #   sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+            setup: "rustup target add aarch64-unknown-linux-gnu && "
+            #sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
             # rustflags: 'RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc"'
           # - host: windows-latest
           #   target: x86_64-pc-windows-gnu
@@ -91,17 +91,17 @@ jobs:
       #   with:
       #     name: ${{ matrix.settings.lib-cache-key }}
       #     path: shim/libturbo
-      - name: Build Setup
-        if: ${{ matrix.settings.setup }}
-        run: ${{ matrix.settings.setup }}
+      # - name: Build Setup
+      #   if: ${{ matrix.settings.setup }}
+      #   run: ${{ matrix.settings.setup }}
 
       - name: Build
         if: ${{ !matrix.settings.docker }}
-        run: cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
+        run: ${{ matrix.settings.setup }} cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
 
       - name: Build in Docker
         if: ${{ matrix.settings.docker }}
-        run: cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
+        run: ${{ matrix.settings.setup }} cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
