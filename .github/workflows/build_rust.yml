@@ -92,9 +92,9 @@ jobs:
       #   with:
       #     name: ${{ matrix.settings.lib-cache-key }}
       #     path: shim/libturbo
-      # - name: Build Setup
-      #   if: ${{ matrix.settings.setup }}
-      #   run: ${{ matrix.settings.setup }}
+      - name: Build Setup
+        if: ${{ matrix.settings.setup }}
+        run: ${{ matrix.settings.setup }}
 
       - name: Build
         if: ${{ !matrix.settings.docker }}
@@ -102,7 +102,7 @@ jobs:
 
       - name: Build in Docker
         if: ${{ matrix.settings.docker }}
-        run: ${{ matrix.settings.setup }} cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
+        run: cd shim && ${{ matrix.settings.rustflags }} cargo build --release --target ${{ matrix.settings.target }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
