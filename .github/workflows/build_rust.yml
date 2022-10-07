@@ -23,10 +23,10 @@ jobs:
           - host: ubuntu-latest
             target: "aarch64-unknown-linux-gnu"
             lib-cache-key: turbo-lib-cross
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
-            #rustflags: 'RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc"'
-            setup: "rustup target add aarch64-unknown-linux-gnu && export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc && "
-            #sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+            #docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+            rustflags: 'RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc"'
+            #setup: "rustup target add aarch64-unknown-linux-gnu && export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc && "
+            setup: "sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu"
             # rustflags: 'RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc"'
           # - host: windows-latest
           #   target: x86_64-pc-windows-gnu
