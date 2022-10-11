@@ -109,3 +109,39 @@ jobs:
         with:
           name: shim-${{ matrix.settings.target }}
           path: shim/target
+
+  final-publish:
+    name: "Publish To NPM"
+    needs: [build-native]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: "${{ inputs.release_branch }}"
+      - run: git fetch origin --tags
+      - uses: ./.github/actions/setup-node
+        with:
+          enable-corepack: false
+      - uses: ./.github/actions/setup-go
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Configure git
+        run: |
+          git config --global user.name 'Turbobot'
+          git config --global user.email 'turbobot@vercel.com'
+
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@v3
+        with:
+          distribution: goreleaser-pro
+          version: latest
+          install-only: true
+        env:
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+
+      - name: Download Cross-compiled Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: turbo-artifacts-cross
+          path: cli/dist-cross
+
