@@ -5,17 +5,19 @@ dist: dist
 builds:
   - id: turbo
     builder: prebuilt
-    goos:
-      - linux
-      - windows
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-    goamd64:
-      - v1
+    # goos:
+    #   - linux
+    #   - windows
+    #   - darwin
+    # goarch:
+    #   - amd64
+    #   - arm64
+    # goamd64:
+    #   - v1
+    targets:
+      - linux_arm64
     prebuilt:
-      path: dist-combined/turbo_{{ .Os }}_{{ .Arch }}{{ with .Amd64 }}_{{ .}}{{ end }}/bin/turbo{{ .Ext }}
+      path: dist-{{ .Os }}-{{ .Arch }}/shim
     hooks:
       pre:
         - cmd: ./scripts/npm-native-packages/npm-native-packages.js {{ .Os }} {{ .Arch }} {{ .Version }}
@@ -62,7 +64,7 @@ changelog:
       - "^test:"
 release:
   github:
-    owner: vercel
+    owner: gsoltis
     name: turborepo
   ids:
     - github

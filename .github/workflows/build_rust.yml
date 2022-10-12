@@ -16,10 +16,10 @@ jobs:
           # - host: macos-latest
           #   target: "aarch64-apple-darwin"
           #   lib-cache-key: turbo-lib-darwin
-          - host: ubuntu-latest
-            target: "x86_64-unknown-linux-gnu"
-            lib-cache-key: turbo-lib-cross
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+          # - host: ubuntu-latest
+          #   target: "x86_64-unknown-linux-gnu"
+          #   lib-cache-key: turbo-lib-cross
+          #   docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
           - host: ubuntu-latest
             target: "aarch64-unknown-linux-gnu"
             lib-cache-key: turbo-lib-cross
@@ -108,10 +108,12 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: shim-${{ matrix.settings.target }}
-          path: shim/target
+          # TODO: change binary name
+          path: shim/target/${{ matrix.settings.target }}/release/shim
 
   final-publish:
     name: "Publish To NPM"
+    runs-on: ubuntu-latest
     needs: [build-native]
     steps:
       - uses: actions/checkout@v3
@@ -139,9 +141,23 @@ jobs:
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
-      - name: Download Cross-compiled Artifacts
+      # - name: Download Apple ARM64 Artifacts
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: shim-aarch64-apple-darwin
+      #     path: cli/dist-darwin-arm64/shim
+
+      - name: Download Ubuntu ARM64 Artifacts
         uses: actions/download-artifact@v3
         with:
-          name: turbo-artifacts-cross
-          path: cli/dist-cross
+          name: shim-aarch64-unknown-linux-gnu
+          path: cli/dist-linux-arm64/shim
 
+      - name: Perform Release (Snapshot)
+        run: cd cli && make publish-shim
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: shim-combined
+          path: cli/dist

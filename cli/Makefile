@@ -174,6 +174,14 @@ publish: clean build
 	npm publish -ddd --tag $(TURBO_TAG) $(CLI_DIR)/../create-turbo-$(TURBO_VERSION).tgz
 	npm publish -ddd --tag $(TURBO_TAG) $(CLI_DIR)/../turbo-codemod-$(TURBO_VERSION).tgz
 
+.PHONY: publish-shim
+publish-shim:
+	echo "Version: $(TURBO_VERSION)"
+	echo "Tag: $(TURBO_TAG)"
+
+	# Publishes the native npm modules.
+	goreleaser release --rm-dist -f combined-shim.yml --snapshot
+
 demo/lage: install
 	node $(CLI_DIR)/scripts/generate.mjs lage
 
