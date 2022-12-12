@@ -24,7 +24,7 @@ fn main() {
     let bindings = bindgen::Builder::default()
         .header(
             lib_search_path
-                .join(header_file(&target.os))
+                .join("libturbo.h")
                 .to_string_lossy(),
         )
         // Tell cargo to invalidate the built crate whenever any of the
@@ -109,11 +109,4 @@ fn cli_path() -> PathBuf {
         .map(PathBuf::from)
         .unwrap()
         .join("cli")
-}
-
-fn header_file(target: &build_target::Os) -> &'static str {
-    match target {
-        build_target::Os::Windows => "turbo.h",
-        _ => "libturbo.h",
-    }
 }
