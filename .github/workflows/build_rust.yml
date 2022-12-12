@@ -34,7 +34,7 @@ jobs:
           - host: windows-latest
             target: x86_64-pc-windows-gnu
             lib-cache-key: turbo-lib-cross-${{ inputs.release_branch }}
-            setup: "ls D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib && rustup set default-host x86_64-pc-windows-gnu"
+            setup: "cp D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib/turbo.exe D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib/turbo.a && cp D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib/turbo.exe D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib/turbo.lib && cp D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib/turbo.exe D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib/libturbo.a && cp D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib/turbo.exe D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib/libturbo.lib && cp D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib/turbo.h D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib/libturbo.h && ls D:/a/turbo/turbo/cli/libturbo/turbo-windows_windows_amd64_v1/lib && rustup set default-host x86_64-pc-windows-gnu"
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
