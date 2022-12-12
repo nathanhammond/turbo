@@ -30,10 +30,11 @@ jobs:
             target: "aarch64-unknown-linux-gnu"
             lib-cache-key: turbo-lib-cross-${{ inputs.release_branch }}
             rustflags: 'RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc"'
-            setup: "sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu"
+            setup: "sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu"
           - host: windows-latest
             target: x86_64-pc-windows-gnu
             lib-cache-key: turbo-lib-cross-${{ inputs.release_branch }}
+            setup: "rustup set default-host x86_64-pc-windows-gnu"
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
@@ -82,7 +83,7 @@ jobs:
           # https://github.com/actions/download-artifact#download-all-artifacts
           name: ${{ matrix.settings.lib-cache-key }}
           # Optional, a directory where to extract artifact(s), defaults to the current directory
-          path: shim/libturbo
+          path: cli/libturbo
           # Optional, choose how to exit the action if no artifact is found
           # can be one of:
           #  "fail", "warn", "ignore"
@@ -94,7 +95,7 @@ jobs:
       #   uses: actions/download-artifact@v3
       #   with:
       #     name: ${{ matrix.settings.lib-cache-key }}
-      #     path: shim/libturbo
+      #     path: cli/libturbo
       - name: Build Setup
         if: ${{ matrix.settings.setup }}
         run: ${{ matrix.settings.setup }}
