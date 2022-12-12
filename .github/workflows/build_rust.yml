@@ -112,8 +112,8 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: shim-${{ matrix.settings.target }}
-          path: shim/target/${{ matrix.settings.target }}/release/turbo*
+          name: turbo-${{ matrix.settings.target }}
+          path: target/${{ matrix.settings.target }}/release/turbo*
 
   final-publish:
     name: "Publish To NPM"
@@ -148,37 +148,37 @@ jobs:
       - name: Download Apple ARM64 Artifacts
         uses: actions/download-artifact@v3
         with:
-          name: shim-aarch64-apple-darwin
+          name: turbo-aarch64-apple-darwin
           path: cli/dist-darwin-arm64
 
       - name: Download Ubuntu ARM64 Artifacts
         uses: actions/download-artifact@v3
         with:
-          name: shim-aarch64-unknown-linux-gnu
+          name: turbo-aarch64-unknown-linux-gnu
           path: cli/dist-linux-arm64
 
       - name: Download Windows ARM64 (Ships as x86_64) Artifacts
         uses: actions/download-artifact@v3
         with:
-          name: shim-x86_64-pc-windows-gnu
+          name: turbo-x86_64-pc-windows-gnu
           path: cli/dist-windows-arm64
 
       - name: Download Ubuntu x86_64 Artifacts
         uses: actions/download-artifact@v3
         with:
-          name: shim-x86_64-unknown-linux-gnu
+          name: turbo-x86_64-unknown-linux-gnu
           path: cli/dist-linux-amd64
 
       - name: Download Apple x86_64 Artifacts
         uses: actions/download-artifact@v3
         with:
-          name: shim-x86_64-apple-darwin
+          name: turbo-x86_64-apple-darwin
           path: cli/dist-darwin-amd64
 
       - name: Download Windows x86_64 Artifacts
         uses: actions/download-artifact@v3
         with:
-          name: shim-x86_64-pc-windows-gnu
+          name: turbo-x86_64-pc-windows-gnu
           path: cli/dist-windows-amd64
 
       - name: Perform Release
@@ -191,5 +191,5 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: shim-combined
+          name: turbo-combined
           path: cli/dist
