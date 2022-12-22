@@ -62,15 +62,23 @@ jobs:
     runs-on: ubuntu-latest
     container: node:alpine
     steps:
-      - run: apk add git
+      - run: apk add git go
       - run: git config --global --add safe.directory /__w/turbo/turbo
       - uses: actions/checkout@v3
         with:
           ref: "${{ inputs.release_branch }}"
       - run: git fetch origin --tags
-      - uses: ./.github/actions/setup-go
+      - name: Set Up Protoc
+        id: set-up-protoc
+        uses: arduino/setup-protoc@v1
         with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          version: "3.x"
+          repo-token: ${{ inputs.github-token }}
+      - name: Set Up GRPC protobuf
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.0
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
