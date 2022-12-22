@@ -1,7 +1,7 @@
 project_name: turbo
 before:
   hooks:
-    - make compile-protos
+    - make protoc
     - go mod tidy
 
 dist: dist-alpine
