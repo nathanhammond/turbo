@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     container: node:alpine
     steps:
-      - run: sudo apk add git
+      - run: apk add git
       - uses: actions/checkout@v3
         with:
           ref: "${{ inputs.release_branch }}"
