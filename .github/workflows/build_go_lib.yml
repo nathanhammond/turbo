@@ -80,6 +80,8 @@ jobs:
           install-only: true
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+      - run: make protoc
+      - run: go mod tidy
       - name: Build Artifacts
         run: cd cli && make snapshot-lib-turbo-alpine
         env:
