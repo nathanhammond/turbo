@@ -81,7 +81,7 @@ jobs:
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       - name: Build Artifacts
-        run: cd cli && make build-lib-turbo-alpine
+        run: cd cli && make snapshot-lib-turbo-alpine
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       - name: Upload Artifacts
