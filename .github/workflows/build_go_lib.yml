@@ -80,7 +80,7 @@ jobs:
           install-only: true
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-      - run: make protoc
+      - run: protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative internal/turbodprotocol/turbod.proto
       - run: go mod tidy
       - name: Build Artifacts
         run: cd cli && make snapshot-lib-turbo-alpine
