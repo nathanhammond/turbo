@@ -20,14 +20,7 @@ builds:
       - goos: linux
         goarch: arm64
         env:
-          - CC=aarch64-linux-musl-gcc
-          - CXX=aarch64-linux-musl-g++
-      - goos: linux
-        goarch: amd64
-        goamd64: v1
-        env:
-          - CC=x86_64-linux-musl-gcc
-          - CXX=x86_64-linux-musl-g++
+          - CC=aarch64-alpine-linux-musl-gcc
 
 archives:
   - format: binary
