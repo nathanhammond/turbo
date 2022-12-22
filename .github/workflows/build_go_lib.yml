@@ -63,6 +63,7 @@ jobs:
     container: node:alpine
     steps:
       - run: apk add git
+      - run: git config --global --add safe.directory /__w/turbo/turbo
       - uses: actions/checkout@v3
         with:
           ref: "${{ inputs.release_branch }}"
