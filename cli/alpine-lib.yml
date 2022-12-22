@@ -14,13 +14,7 @@ builds:
     env:
       - CGO_ENABLED=1
     targets:
-      - linux_arm64
       - linux_amd64
-    overrides:
-      - goos: linux
-        goarch: arm64
-        env:
-          - CC=aarch64-alpine-linux-musl-gcc
 
 archives:
   - format: binary
