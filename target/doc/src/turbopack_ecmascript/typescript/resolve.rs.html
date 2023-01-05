@@ -365,16 +365,32 @@
 <span id="365">365</span>
 <span id="366">366</span>
 <span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>anyhow::Result;
 <span class="kw">use </span>serde_json::Value <span class="kw">as </span>JsonValue;
-<span class="kw">use </span>turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+<span class="kw">use </span>turbo_tasks::{
+    primitives::{StringVc, StringsVc},
+    Value, ValueToString, ValueToStringVc,
+};
 <span class="kw">use </span>turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 <span class="kw">use </span>turbopack_core::{
     asset::AssetVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     reference::{AssetReference, AssetReferenceVc},
+    reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
         handle_resolve_error,
         options::{
@@ -574,6 +590,11 @@
 }
 
 <span class="attr">#[turbo_tasks::function]
+</span><span class="kw">pub fn </span>tsconfig() -&gt; StringsVc {
+    StringsVc::cell(<span class="macro">vec!</span>[<span class="string">&quot;tsconfig.json&quot;</span>.to_string()])
+}
+
+<span class="attr">#[turbo_tasks::function]
 </span><span class="kw">pub async fn </span>apply_tsconfig_resolve_options(
     resolve_options: ResolveOptionsVc,
     tsconfig_resolve_options: TsConfigResolveOptionsVc,
@@ -600,8 +621,11 @@
 
 <span class="attr">#[turbo_tasks::function]
 </span><span class="kw">pub async fn </span>type_resolve(origin: ResolveOriginVc, request: RequestVc) -&gt; <span class="prelude-ty">Result</span>&lt;ResolveResultVc&gt; {
+    <span class="kw">let </span>ty = Value::new(ReferenceType::TypeScript(
+        TypeScriptReferenceSubType::Undefined,
+    ));
     <span class="kw">let </span>context_path = origin.origin_path().parent();
-    <span class="kw">let </span>options = origin.resolve_options();
+    <span class="kw">let </span>options = origin.resolve_options(ty.clone());
     <span class="kw">let </span>options = apply_typescript_types_options(options);
     <span class="kw">let </span>types_request = <span class="kw">if let </span>Request::Module {
         module: m,
@@ -632,8 +656,8 @@
     } <span class="kw">else </span>{
         resolve(context_path, request, options)
     };
-    <span class="kw">let </span>result = origin.context().process_resolve_result(result);
-    handle_resolve_error(result, <span class="string">&quot;type request&quot;</span>, origin, request, options).<span class="kw">await
+    <span class="kw">let </span>result = origin.context().process_resolve_result(result, ty.clone());
+    handle_resolve_error(result, ty, origin, request, options).<span class="kw">await
 </span>}
 
 <span class="attr">#[turbo_tasks::value]

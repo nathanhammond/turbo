@@ -416,15 +416,34 @@
 <span id="416">416</span>
 <span id="417">417</span>
 <span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, future::Future, pin::Pin};
 
 <span class="kw">use </span>anyhow::Result;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
-<span class="kw">use </span>turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, Value};
-<span class="kw">use </span>turbo_tasks_fs::{
-    glob::{Glob, GlobVc},
-    FileSystemPathVc,
+<span class="kw">use </span>turbo_tasks::{
+    debug::ValueDebugFormat, primitives::StringVc, trace::TraceRawVcs, TryJoinIterExt, Value,
+    ValueToString, ValueToStringVc,
 };
+<span class="kw">use </span>turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
 
 <span class="kw">use super</span>::{
     alias_map::{AliasMap, AliasTemplate},
@@ -571,17 +590,13 @@
 <span class="attr">#[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 </span><span class="kw">pub struct </span>ImportMap {
-    direct: AliasMap&lt;ImportMappingVc&gt;,
-    by_glob: Vec&lt;(Glob, ImportMappingVc)&gt;,
+    map: AliasMap&lt;ImportMappingVc&gt;,
 }
 
 <span class="kw">impl </span>ImportMap {
     <span class="doccomment">/// Creates a new import map.
-    </span><span class="kw">pub fn </span>new(
-        direct: AliasMap&lt;ImportMappingVc&gt;,
-        by_glob: Vec&lt;(Glob, ImportMappingVc)&gt;,
-    ) -&gt; ImportMap {
-        <span class="self">Self </span>{ direct, by_glob }
+    </span><span class="kw">pub fn </span>new(map: AliasMap&lt;ImportMappingVc&gt;) -&gt; ImportMap {
+        <span class="self">Self </span>{ map }
     }
 
     <span class="doccomment">/// Creates a new empty import map.
@@ -591,14 +606,13 @@
 
     <span class="doccomment">/// Extends the import map with another import map.
     </span><span class="kw">pub fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>ImportMap) {
-        <span class="kw">let </span><span class="self">Self </span>{ direct, by_glob } = other.clone();
-        <span class="self">self</span>.direct.extend(direct);
-        <span class="self">self</span>.by_glob.extend(by_glob);
+        <span class="kw">let </span><span class="self">Self </span>{ map } = other.clone();
+        <span class="self">self</span>.map.extend(map);
     }
 
     <span class="doccomment">/// Inserts an alias into the import map.
     </span><span class="kw">pub fn </span>insert_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, alias: AliasPattern, mapping: ImportMappingVc) {
-        <span class="self">self</span>.direct.insert(alias, mapping);
+        <span class="self">self</span>.map.insert(alias, mapping);
     }
 
     <span class="doccomment">/// Inserts an exact alias into the import map.
@@ -607,7 +621,7 @@
         pattern: <span class="kw">impl </span>Into&lt;String&gt; + <span class="lifetime">&#39;a</span>,
         mapping: ImportMappingVc,
     ) {
-        <span class="self">self</span>.direct.insert(AliasPattern::exact(pattern), mapping);
+        <span class="self">self</span>.map.insert(AliasPattern::exact(pattern), mapping);
     }
 
     <span class="doccomment">/// Inserts a wildcard alias into the import map.
@@ -616,8 +630,7 @@
         prefix: <span class="kw">impl </span>Into&lt;String&gt; + <span class="lifetime">&#39;a</span>,
         mapping: ImportMappingVc,
     ) {
-        <span class="self">self</span>.direct
-            .insert(AliasPattern::wildcard(prefix, <span class="string">&quot;&quot;</span>), mapping);
+        <span class="self">self</span>.map.insert(AliasPattern::wildcard(prefix, <span class="string">&quot;&quot;</span>), mapping);
     }
 
     <span class="doccomment">/// Inserts a wildcard alias with suffix into the import map.
@@ -627,7 +640,7 @@
         suffix: <span class="kw">impl </span>Into&lt;String&gt; + <span class="lifetime">&#39;s</span>,
         mapping: ImportMappingVc,
     ) {
-        <span class="self">self</span>.direct
+        <span class="self">self</span>.map
             .insert(AliasPattern::wildcard(prefix, suffix), mapping);
     }
 }
@@ -695,6 +708,41 @@
     })
 }
 
+<span class="attr">#[turbo_tasks::value_impl]
+</span><span class="kw">impl </span>ValueToString <span class="kw">for </span>ImportMapResult {
+    <span class="attr">#[turbo_tasks::function]
+    </span><span class="kw">async fn </span>to_string(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;StringVc&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            ImportMapResult::Result(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(StringVc::cell(<span class="string">&quot;Resolved by import map&quot;</span>.to_string())),
+            ImportMapResult::Alias(request, context) =&gt; {
+                <span class="kw">let </span>s = <span class="kw">if let </span><span class="prelude-val">Some</span>(path) = context {
+                    <span class="macro">format!</span>(
+                        <span class="string">&quot;aliased to {} inside of {}&quot;</span>,
+                        request.to_string().<span class="kw">await</span><span class="question-mark">?</span>,
+                        path.to_string().<span class="kw">await</span><span class="question-mark">?
+                    </span>)
+                } <span class="kw">else </span>{
+                    <span class="macro">format!</span>(<span class="string">&quot;aliased to {}&quot;</span>, request.to_string().<span class="kw">await</span><span class="question-mark">?</span>)
+                };
+                <span class="prelude-val">Ok</span>(StringVc::cell(s))
+            }
+            ImportMapResult::Alternatives(alternatives) =&gt; {
+                <span class="kw">let </span>strings = alternatives
+                    .iter()
+                    .map(|alternative| alternative.clone().cell().to_string())
+                    .try_join()
+                    .<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="kw">let </span>strings = strings
+                    .iter()
+                    .map(|string| string.as_str())
+                    .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+                <span class="prelude-val">Ok</span>(StringVc::cell(strings.join(<span class="string">&quot; | &quot;</span>)))
+            }
+            ImportMapResult::NoEntry =&gt; <span class="prelude-val">Ok</span>(StringVc::cell(<span class="string">&quot;No import map entry&quot;</span>.to_string())),
+        }
+    }
+}
+
 <span class="comment">// This cannot be inlined within `import_mapping_to_result`, otherwise we run
 // into the following error:
 //     cycle detected when computing type of
@@ -713,23 +761,13 @@
         <span class="kw">let </span>this = <span class="self">self</span>.<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="comment">// TODO lookup pattern
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(request_string) = request.<span class="kw">await</span><span class="question-mark">?</span>.request() {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(result) = this.direct.lookup(<span class="kw-2">&amp;</span>request_string).next() {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(result) = this.map.lookup(<span class="kw-2">&amp;</span>request_string).next() {
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(import_mapping_to_result(
                     result.try_join_into_self().<span class="kw">await</span><span class="question-mark">?</span>.into_owned(),
                     request,
                 )
                 .<span class="kw">await</span><span class="question-mark">?
                 </span>.into());
-            }
-            <span class="kw">let </span>request_string_without_slash = <span class="kw">if </span>request_string.ends_with(<span class="string">&#39;/&#39;</span>) {
-                <span class="kw-2">&amp;</span>request_string[..request_string.len() - <span class="number">1</span>]
-            } <span class="kw">else </span>{
-                <span class="kw-2">&amp;</span>request_string
-            };
-            <span class="kw">for </span>(glob, mapping) <span class="kw">in </span>this.by_glob.iter() {
-                <span class="kw">if </span>glob.execute(request_string_without_slash) {
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(import_mapping_to_result(<span class="kw-2">*</span>mapping, request).<span class="kw">await</span><span class="question-mark">?</span>.into());
-                }
             }
         }
         <span class="prelude-val">Ok</span>(ImportMapResult::NoEntry.into())

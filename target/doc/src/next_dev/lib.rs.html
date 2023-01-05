@@ -537,6 +537,14 @@
 <span id="537">537</span>
 <span id="538">538</span>
 <span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
 </pre><pre class="rust"><code><span class="attr">#![feature(future_join)]
 #![feature(min_specialization)]
 
@@ -547,6 +555,7 @@
     collections::HashSet,
     env::current_dir,
     future::{join, Future},
+    io::{stdout, Write},
     net::{IpAddr, SocketAddr},
     path::MAIN_SEPARATOR,
     sync::Arc,
@@ -556,14 +565,13 @@
 <span class="kw">use </span>anyhow::{anyhow, Context, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span>devserver_options::DevServerOptions;
 <span class="kw">use </span>next_core::{
-    create_app_source, create_server_rendered_source, create_web_entry_source, env::load_env,
-    manifest::DevManifestContentSource, next_image::NextImageContentSourceVc,
-    source_map::NextSourceMapTraceContentSourceVc,
+    create_app_source, create_page_source, create_web_entry_source, env::load_env,
+    manifest::DevManifestContentSource, next_config::load_next_config,
+    next_image::NextImageContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
 <span class="kw">use </span>owo_colors::OwoColorize;
 <span class="kw">use </span>turbo_malloc::TurboMalloc;
 <span class="kw">use </span>turbo_tasks::{
-    primitives::StringsVc,
     util::{FormatBytes, FormatDuration},
     RawVc, StatsType, TransientInstance, TransientValue, TurboTasks, TurboTasksBackendApi, Value,
 };
@@ -571,6 +579,7 @@
 <span class="kw">use </span>turbo_tasks_memory::MemoryBackend;
 <span class="kw">use </span>turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc, LogOptions};
 <span class="kw">use </span>turbopack_core::{
+    environment::ServerAddr,
     issue::IssueSeverity,
     resolve::{parse::RequestVc, pattern::QueryMapVc},
 };
@@ -579,10 +588,12 @@
     introspect::IntrospectionSource,
     source::{
         combined::CombinedContentSourceVc, router::RouterContentSource,
-        static_assets::StaticAssetsContentSourceVc, ContentSourceVc,
+        source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
+        ContentSourceVc,
     },
-    DevServer,
+    DevServer, DevServerBuilder,
 };
+<span class="kw">use </span>turbopack_node::execution_context::ExecutionContextVc;
 
 <span class="attr">#[derive(Clone)]
 </span><span class="kw">pub enum </span>EntryRequest {
@@ -595,7 +606,6 @@
     project_dir: String,
     root_dir: String,
     entry_requests: Vec&lt;EntryRequest&gt;,
-    server_component_externals: Vec&lt;String&gt;,
     eager_compile: bool,
     hostname: <span class="prelude-ty">Option</span>&lt;IpAddr&gt;,
     port: <span class="prelude-ty">Option</span>&lt;u16&gt;,
@@ -617,7 +627,6 @@
             project_dir,
             root_dir,
             entry_requests: <span class="macro">vec!</span>[],
-            server_component_externals: <span class="macro">vec!</span>[],
             eager_compile: <span class="bool-val">false</span>,
             hostname: <span class="prelude-val">None</span>,
             port: <span class="prelude-val">None</span>,
@@ -633,11 +642,6 @@
 
     <span class="kw">pub fn </span>entry_request(<span class="kw-2">mut </span><span class="self">self</span>, entry_asset_path: EntryRequest) -&gt; NextDevServerBuilder {
         <span class="self">self</span>.entry_requests.push(entry_asset_path);
-        <span class="self">self
-    </span>}
-
-    <span class="kw">pub fn </span>server_component_external(<span class="kw-2">mut </span><span class="self">self</span>, external: String) -&gt; NextDevServerBuilder {
-        <span class="self">self</span>.server_component_externals.push(external);
         <span class="self">self
     </span>}
 
@@ -681,12 +685,55 @@
         <span class="self">self
     </span>}
 
-    <span class="kw">pub async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;DevServer&gt; {
-        <span class="kw">let </span>turbo_tasks = <span class="self">self</span>.turbo_tasks;
+    <span class="doccomment">/// Attempts to find an open port to bind.
+    </span><span class="kw">fn </span>find_port(<span class="kw-2">&amp;</span><span class="self">self</span>, host: IpAddr, port: u16, max_attempts: u16) -&gt; <span class="prelude-ty">Result</span>&lt;DevServerBuilder&gt; {
+        <span class="comment">// max_attempts of 1 means we loop 0 times.
+        </span><span class="kw">let </span>max_attempts = max_attempts - <span class="number">1</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>attempts = <span class="number">0</span>;
+        <span class="kw">loop </span>{
+            <span class="kw">let </span>current_port = port + attempts;
+            <span class="kw">let </span>addr = SocketAddr::new(host, current_port);
+            <span class="kw">let </span>listen_result = DevServer::listen(addr);
 
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="kw-2">&amp;</span>listen_result {
+                <span class="kw">if </span><span class="self">self</span>.allow_retry &amp;&amp; attempts &lt; max_attempts {
+                    <span class="comment">// Returned error from `listen` is not `std::io::Error` but `anyhow::Error`,
+                    // so we need to access its source to check if it is
+                    // `std::io::ErrorKind::AddrInUse`.
+                    </span><span class="kw">let </span>should_retry = e
+                        .source()
+                        .and_then(|e| {
+                            e.downcast_ref::&lt;std::io::Error&gt;()
+                                .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
+                        })
+                        .unwrap_or(<span class="bool-val">false</span>);
+
+                    <span class="kw">if </span>should_retry {
+                        <span class="macro">println!</span>(
+                            <span class="string">&quot;{} - Port {} is in use, trying {} instead&quot;</span>,
+                            <span class="string">&quot;warn &quot;</span>.yellow(),
+                            current_port,
+                            current_port + <span class="number">1
+                        </span>);
+                        attempts += <span class="number">1</span>;
+                        <span class="kw">continue</span>;
+                    }
+                }
+            }
+
+            <span class="kw">return </span>listen_result;
+        }
+    }
+
+    <span class="kw">pub async fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;DevServer&gt; {
+        <span class="kw">let </span>port = <span class="self">self</span>.port.context(<span class="string">&quot;port must be set&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>host = <span class="self">self</span>.hostname.context(<span class="string">&quot;hostname must be set&quot;</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>server = <span class="self">self</span>.find_port(host, port, <span class="number">10</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>turbo_tasks = <span class="self">self</span>.turbo_tasks;
         <span class="kw">let </span>project_dir = <span class="self">self</span>.project_dir;
         <span class="kw">let </span>root_dir = <span class="self">self</span>.root_dir;
-        <span class="kw">let </span>server_component_externals = <span class="self">self</span>.server_component_externals;
         <span class="kw">let </span>eager_compile = <span class="self">self</span>.eager_compile;
         <span class="kw">let </span>show_all = <span class="self">self</span>.show_all;
         <span class="kw">let </span>log_detail = <span class="self">self</span>.log_detail;
@@ -697,15 +744,10 @@
             log_detail,
             log_level: <span class="self">self</span>.log_level,
         };
-        <span class="kw">let </span>entry_requests = Arc::new(<span class="self">self</span>.entry_requests.clone());
+        <span class="kw">let </span>entry_requests = Arc::new(<span class="self">self</span>.entry_requests);
         <span class="kw">let </span>console_ui = Arc::new(ConsoleUi::new(log_options));
         <span class="kw">let </span>console_ui_to_dev_server = console_ui.clone();
-
-        <span class="kw">let </span>start_port = <span class="self">self</span>.port.context(<span class="string">&quot;port must be set&quot;</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>host = <span class="self">self</span>.hostname.context(<span class="string">&quot;hostname must be set&quot;</span>)<span class="question-mark">?</span>;
-
-        <span class="kw">let </span><span class="kw-2">mut </span>err: <span class="prelude-ty">Option</span>&lt;anyhow::Error&gt; = <span class="prelude-val">None</span>;
-
+        <span class="kw">let </span>server_addr = Arc::new(server.addr);
         <span class="kw">let </span>tasks = turbo_tasks.clone();
         <span class="kw">let </span>source = <span class="kw">move </span>|| {
             source(
@@ -716,63 +758,11 @@
                 turbo_tasks.clone().into(),
                 console_ui.clone().into(),
                 browserslist_query.clone(),
-                server_component_externals.clone(),
+                server_addr.clone().into(),
             )
         };
 
-        <span class="comment">// Retry to listen on the different port if the port is already in use.
-        </span><span class="kw">for </span>retry_count <span class="kw">in </span><span class="number">0</span>..<span class="number">10 </span>{
-            <span class="kw">let </span>current_port = start_port + retry_count;
-            <span class="kw">let </span>addr = SocketAddr::new(host, current_port);
-
-            <span class="kw">let </span>listen_result = DevServer::listen(
-                tasks.clone(),
-                source.clone(),
-                addr,
-                console_ui_to_dev_server.clone(),
-            );
-
-            <span class="kw">match </span>listen_result {
-                <span class="prelude-val">Ok</span>(server) =&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(server);
-                }
-                <span class="prelude-val">Err</span>(e) =&gt; {
-                    <span class="kw">let </span>should_retry = <span class="kw">if </span><span class="self">self</span>.allow_retry {
-                        <span class="comment">// Returned error from `listen` is not `std::io::Error` but `anyhow::Error`,
-                        // so we need to access its source to check if it is
-                        // `std::io::ErrorKind::AddrInUse`.
-                        </span>e.source()
-                            .map(|e| {
-                                e.source()
-                                    .map(|e| {
-                                        e.downcast_ref::&lt;std::io::Error&gt;()
-                                            .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
-                                            == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>)
-                                    })
-                                    .unwrap_or_else(|| <span class="bool-val">false</span>)
-                            })
-                            .unwrap_or_else(|| <span class="bool-val">false</span>)
-                    } <span class="kw">else </span>{
-                        <span class="bool-val">false
-                    </span>};
-
-                    <span class="kw">if </span>!should_retry {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(e);
-                    } <span class="kw">else </span>{
-                        <span class="macro">println!</span>(
-                            <span class="string">&quot;{} - Port {} is in use, trying {} instead&quot;</span>,
-                            <span class="string">&quot;warn &quot;</span>.yellow(),
-                            current_port,
-                            current_port + <span class="number">1
-                        </span>);
-                    }
-
-                    err = <span class="prelude-val">Some</span>(e);
-                }
-            }
-        }
-
-        <span class="prelude-val">Err</span>(err.expect(<span class="string">&quot;Should have an error if we get here&quot;</span>))
+        <span class="prelude-val">Ok</span>(server.serve(tasks, source, console_ui_to_dev_server))
     }
 }
 
@@ -804,7 +794,8 @@
     <span class="prelude-val">Ok</span>(disk_fs.into())
 }
 
-<span class="attr">#[turbo_tasks::function]
+<span class="attr">#[allow(clippy::too_many_arguments)]
+#[turbo_tasks::function]
 </span><span class="kw">async fn </span>source(
     root_dir: String,
     project_dir: String,
@@ -813,7 +804,7 @@
     turbo_tasks: TransientInstance&lt;TurboTasks&lt;MemoryBackend&gt;&gt;,
     console_ui: TransientInstance&lt;ConsoleUi&gt;,
     browserslist_query: String,
-    server_component_externals: Vec&lt;String&gt;,
+    server_addr: TransientInstance&lt;SocketAddr&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;ContentSourceVc&gt; {
     <span class="kw">let </span>console_ui = (<span class="kw-2">*</span>console_ui).clone().cell();
     <span class="kw">let </span>output_fs = output_fs(<span class="kw-2">&amp;</span>project_dir, console_ui);
@@ -825,8 +816,14 @@
     <span class="kw">let </span>project_path = fs.root().join(project_relative);
 
     <span class="kw">let </span>env = load_env(project_path);
+    <span class="kw">let </span>build_output_root = output_fs.root().join(<span class="string">&quot;.next/build&quot;</span>);
 
-    <span class="kw">let </span>output_root = output_fs.root().join(<span class="string">&quot;/.next/server&quot;</span>);
+    <span class="kw">let </span>execution_context = ExecutionContextVc::new(project_path, build_output_root);
+
+    <span class="kw">let </span>next_config = load_next_config(execution_context.join(<span class="string">&quot;next_config&quot;</span>));
+
+    <span class="kw">let </span>output_root = output_fs.root().join(<span class="string">&quot;.next/server&quot;</span>);
+    <span class="kw">let </span>server_addr = ServerAddr::new(<span class="kw-2">*</span>server_addr).cell();
 
     <span class="kw">let </span>dev_server_fs = DevServerFileSystemVc::new().as_file_system();
     <span class="kw">let </span>dev_server_root = dev_server_fs.root();
@@ -842,26 +839,33 @@
 
     <span class="kw">let </span>web_source = create_web_entry_source(
         project_path,
+        execution_context,
         entry_requests,
         dev_server_root,
         env,
         eager_compile,
         <span class="kw-2">&amp;</span>browserslist_query,
+        next_config,
     );
-    <span class="kw">let </span>rendered_source = create_server_rendered_source(
+    <span class="kw">let </span>page_source = create_page_source(
         project_path,
+        execution_context,
         output_root.join(<span class="string">&quot;pages&quot;</span>),
         dev_server_root,
         env,
         <span class="kw-2">&amp;</span>browserslist_query,
+        next_config,
+        server_addr,
     );
     <span class="kw">let </span>app_source = create_app_source(
         project_path,
+        execution_context,
         output_root.join(<span class="string">&quot;app&quot;</span>),
         dev_server_root,
         env,
         <span class="kw-2">&amp;</span>browserslist_query,
-        StringsVc::cell(server_component_externals),
+        next_config,
+        server_addr,
     );
     <span class="kw">let </span>viz = turbo_tasks_viz::TurboTasksSource {
         turbo_tasks: turbo_tasks.into(),
@@ -871,7 +875,7 @@
     <span class="kw">let </span>static_source =
         StaticAssetsContentSourceVc::new(String::new(), project_path.join(<span class="string">&quot;public&quot;</span>)).into();
     <span class="kw">let </span>manifest_source = DevManifestContentSource {
-        page_roots: <span class="macro">vec!</span>[app_source, rendered_source],
+        page_roots: <span class="macro">vec!</span>[app_source, page_source],
     }
     .cell()
     .into();
@@ -879,7 +883,7 @@
         manifest_source,
         static_source,
         app_source,
-        rendered_source,
+        page_source,
         web_source,
     ]);
     <span class="kw">let </span>introspect = IntrospectionSource {
@@ -888,9 +892,10 @@
     .cell()
     .into();
     <span class="kw">let </span>main_source = main_source.into();
+    <span class="kw">let </span>source_maps = SourceMapContentSourceVc::new(main_source).into();
     <span class="kw">let </span>source_map_trace = NextSourceMapTraceContentSourceVc::new(main_source).into();
     <span class="kw">let </span>img_source = NextImageContentSourceVc::new(
-        CombinedContentSourceVc::new(<span class="macro">vec!</span>[static_source, rendered_source]).into(),
+        CombinedContentSourceVc::new(<span class="macro">vec!</span>[static_source, page_source]).into(),
     )
     .into();
     <span class="kw">let </span>source = RouterContentSource {
@@ -903,6 +908,7 @@
             ),
             <span class="comment">// TODO: Load path from next.config.js
             </span>(<span class="string">&quot;_next/image&quot;</span>.to_string(), img_source),
+            (<span class="string">&quot;__turbopack_sourcemap__/&quot;</span>.to_string(), source_maps),
         ],
         fallback: main_source,
     }
@@ -911,7 +917,7 @@
 
     handle_issues(dev_server_fs, console_ui).<span class="kw">await</span><span class="question-mark">?</span>;
     handle_issues(web_source, console_ui).<span class="kw">await</span><span class="question-mark">?</span>;
-    handle_issues(rendered_source, console_ui).<span class="kw">await</span><span class="question-mark">?</span>;
+    handle_issues(page_source, console_ui).<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(source)
 }
@@ -976,20 +982,12 @@
     <span class="attr">#[cfg(feature = <span class="string">&quot;serializable&quot;</span>)]
     </span>{
         server = server.allow_retry(options.allow_retry);
-
-        <span class="kw">for </span>package <span class="kw">in </span>options.server_components_external_packages.iter() {
-            server = server.server_component_external(package.to_string());
-        }
     }
 
     <span class="kw">let </span>server = server.build().<span class="kw">await</span><span class="question-mark">?</span>;
 
     {
-        <span class="kw">let </span>index_uri = <span class="kw">if </span>server.addr.ip().is_loopback() || server.addr.ip().is_unspecified() {
-            <span class="macro">format!</span>(<span class="string">&quot;http://localhost:{}&quot;</span>, server.addr.port())
-        } <span class="kw">else </span>{
-            <span class="macro">format!</span>(<span class="string">&quot;http://{}&quot;</span>, server.addr)
-        };
+        <span class="kw">let </span>index_uri = ServerAddr::new(server.addr).to_string()<span class="question-mark">?</span>;
         <span class="macro">println!</span>(
             <span class="string">&quot;{} - started server on {}:{}, url: {}&quot;</span>,
             <span class="string">&quot;ready&quot;</span>.green(),
@@ -1018,27 +1016,45 @@
             );
         }
 
+        <span class="kw">let </span><span class="kw-2">mut </span>progress_counter = <span class="number">0</span>;
         <span class="kw">loop </span>{
             <span class="kw">let </span>update_future = profile_timeout(
                 tt_clone.as_ref(),
-                tt_clone.get_or_wait_update_info(Duration::from_millis(<span class="number">100</span>)),
+                tt_clone.update_info(Duration::from_millis(<span class="number">100</span>), Duration::MAX),
             );
 
-            <span class="kw">let </span>(elapsed, count) = update_future.<span class="kw">await</span>;
-            <span class="kw">if </span>options.log_detail {
-                <span class="macro">println!</span>(
-                    <span class="string">&quot;{event_type} - updated in {elapsed} ({tasks} tasks, {memory})&quot;</span>,
-                    event_type = <span class="string">&quot;event&quot;</span>.purple(),
-                    elapsed = FormatDuration(elapsed),
-                    tasks = count,
-                    memory = FormatBytes(TurboMalloc::memory_usage())
-                );
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((elapsed, count)) = update_future.<span class="kw">await </span>{
+                progress_counter = <span class="number">0</span>;
+                <span class="kw">if </span>options.log_detail {
+                    <span class="macro">println!</span>(
+                        <span class="string">&quot;\x1b[2K{event_type} - updated in {elapsed} ({tasks} tasks, {memory})&quot;</span>,
+                        event_type = <span class="string">&quot;event&quot;</span>.purple(),
+                        elapsed = FormatDuration(elapsed),
+                        tasks = count,
+                        memory = FormatBytes(TurboMalloc::memory_usage())
+                    );
+                } <span class="kw">else </span>{
+                    <span class="macro">println!</span>(
+                        <span class="string">&quot;\x1b[2K{event_type} - updated in {elapsed}&quot;</span>,
+                        event_type = <span class="string">&quot;event&quot;</span>.purple(),
+                        elapsed = FormatDuration(elapsed),
+                    );
+                }
             } <span class="kw">else </span>{
-                <span class="macro">println!</span>(
-                    <span class="string">&quot;{event_type} - updated in {elapsed}&quot;</span>,
-                    event_type = <span class="string">&quot;event&quot;</span>.purple(),
-                    elapsed = FormatDuration(elapsed),
-                );
+                progress_counter += <span class="number">1</span>;
+                <span class="kw">if </span>options.log_detail {
+                    <span class="macro">print!</span>(
+                        <span class="string">&quot;\x1b[2K{event_type} - updating for {progress_counter}s... ({memory})\r&quot;</span>,
+                        event_type = <span class="string">&quot;event&quot;</span>.purple(),
+                        memory = FormatBytes(TurboMalloc::memory_usage())
+                    );
+                } <span class="kw">else </span>{
+                    <span class="macro">print!</span>(
+                        <span class="string">&quot;\x1b[2K{event_type} - updating for {progress_counter}s...\r&quot;</span>,
+                        event_type = <span class="string">&quot;event&quot;</span>.purple(),
+                    );
+                }
+                <span class="kw">let _ </span>= stdout().lock().flush();
             }
         }
     };

@@ -211,30 +211,173 @@
 <span id="211">211</span>
 <span id="212">212</span>
 <span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
 </pre><pre class="rust"><code><span class="kw">use </span>anyhow::{bail, Context, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span>indexmap::IndexMap;
 <span class="kw">use </span>indoc::formatdoc;
 <span class="kw">use </span>once_cell::sync::Lazy;
-<span class="kw">use </span>turbo_tasks::primitives::{OptionStringVc, StringVc};
+<span class="kw">use </span>turbo_tasks::primitives::{OptionStringVc, OptionU16Vc, StringVc, U32Vc};
 <span class="kw">use </span>turbo_tasks_fetch::fetch;
 <span class="kw">use </span>turbo_tasks_fs::{FileContent, FileSystemPathVc};
+<span class="kw">use </span>turbo_tasks_hash::hash_xxh3_hash64;
 <span class="kw">use </span>turbopack_core::{
+    issue::IssueSeverity,
     resolve::{
         options::{
             ImportMapResult, ImportMapResultVc, ImportMapping, ImportMappingReplacement,
             ImportMappingReplacementVc, ImportMappingVc,
         },
         parse::{Request, RequestVc},
+        pattern::QueryMapVc,
         ResolveResult,
     },
     virtual_asset::VirtualAssetVc,
 };
 
+<span class="kw">use </span><span class="self">self</span>::options::FontWeights;
 <span class="kw">use crate</span>::{
     embed_js::attached_next_js_package_path,
     next_font_google::{
         options::FontDataEntry,
-        request::NextFontRequest,
         util::{get_font_axes, get_stylesheet_url},
     },
 };
@@ -275,25 +418,44 @@
         <span class="kw">let </span>Request::Module {
             module: <span class="kw">_</span>,
             path: <span class="kw">_</span>,
-            query,
+            query: query_vc
         } = request <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(ImportMapResult::NoEntry.into());
         };
 
-        <span class="kw">let </span>query = <span class="kw-2">&amp;*</span>query.<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>query = <span class="kw-2">&amp;*</span>query_vc.<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>options = font_options_from_query_map(<span class="kw-2">*</span>query_vc);
+        <span class="kw">let </span>properties =
+            get_font_css_properties(get_scoped_font_family(<span class="kw-2">*</span>query_vc), options).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>js_asset = VirtualAssetVc::new(
                 attached_next_js_package_path(<span class="self">self</span>.project_path)
-                    .join(<span class="string">&quot;internal/font/google/inter.js&quot;</span>),
+                    .join(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;internal/font/google/{}.js&quot;</span>, get_request_id(<span class="kw-2">*</span>query_vc).<span class="kw">await</span><span class="question-mark">?</span>)),
                 FileContent::Content(
                     <span class="macro">formatdoc!</span>(
                         <span class="string">r#&quot;
                             import cssModule from &quot;@vercel/turbopack-next/internal/font/google/cssmodule.module.css?{}&quot;;
                             export default {{
-                                className: cssModule.className
+                                className: cssModule.className,
+                                style: {{
+                                    fontFamily: &quot;{}&quot;,
+                                    {}{}
+                                }}
                             }};
                         &quot;#</span>,
                         <span class="comment">// Pass along whichever options we received to the css handler
-                        </span>qstring::QString::new(query.as_ref().unwrap().iter().collect())
+                        </span>qstring::QString::new(query.as_ref().unwrap().iter().collect()),
+                        properties.font_family.<span class="kw">await</span><span class="question-mark">?</span>,
+                        properties
+                            .weight
+                            .<span class="kw">await</span><span class="question-mark">?
+                            </span>.map(|w| <span class="macro">format!</span>(<span class="string">&quot;fontWeight: {},\n&quot;</span>, w))
+                            .unwrap_or_else(|| <span class="string">&quot;&quot;</span>.to_owned()),
+                        properties
+                            .style
+                            .<span class="kw">await</span><span class="question-mark">?
+                            </span>.as_ref()
+                            .map(|s| <span class="macro">format!</span>(<span class="string">&quot;fontStyle: \&quot;{}\&quot;,\n&quot;</span>, s))
+                            .unwrap_or_else(|| <span class="string">&quot;&quot;</span>.to_owned()),
                     )
                     .into(),
                 )
@@ -330,32 +492,21 @@
         <span class="kw">let </span>Request::Module {
             module: <span class="kw">_</span>,
             path: <span class="kw">_</span>,
-            query,
+            query: query_vc,
         } = request <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(ImportMapResult::NoEntry.into());
         };
+        request.request();
 
-        <span class="kw">let </span>query_map = <span class="kw-2">&amp;*</span>query.<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="comment">// These are invariants from the next/font swc transform. Regular errors instead
-        // of Issues should be okay.
-        </span><span class="kw">let </span>query_map = query_map
-            .as_ref()
-            .context(<span class="string">&quot;@next/font/google queries must exist&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>options = font_options_from_query_map(<span class="kw-2">*</span>query_vc);
+        <span class="kw">let </span>stylesheet_url = get_stylesheet_url_from_options(options);
+        <span class="kw">let </span>scoped_font_family = get_scoped_font_family(<span class="kw-2">*</span>query_vc);
+        <span class="kw">let </span>css_virtual_path = attached_next_js_package_path(<span class="self">self</span>.project_path).join(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+            <span class="string">&quot;internal/font/google/{}.module.css&quot;</span>,
+            get_request_id(<span class="kw-2">*</span>query_vc).<span class="kw">await</span><span class="question-mark">?
+        </span>));
 
-        <span class="kw">if </span>query_map.len() != <span class="number">1 </span>{
-            <span class="macro">bail!</span>(<span class="string">&quot;@next/font/google queries must only have one entry&quot;</span>);
-        }
-
-        <span class="kw">let </span><span class="prelude-val">Some</span>((json, <span class="kw">_</span>)) = query_map.iter().next() <span class="kw">else </span>{
-            <span class="macro">bail!</span>(<span class="string">&quot;Expected one entry&quot;</span>);
-        };
-
-        <span class="kw">let </span>request: StringVc = StringVc::cell(json.to_owned());
-        <span class="kw">let </span>stylesheet_url = get_stylesheet_url_from_request(request);
-
-        <span class="comment">// TODO(WEB-274): Handle this failing (e.g. connection issues). This should be
-        // an Issue.
-        </span><span class="kw">let </span>stylesheet_res = fetch(
+        <span class="kw">let </span>stylesheet_res = fetch(
             stylesheet_url,
             OptionStringVc::cell(<span class="prelude-val">Some</span>(
                 <span class="string">&quot;Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like \
@@ -365,28 +516,54 @@
         )
         .<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="comment">// TODO(WEB-274): Emit an issue instead
-        </span><span class="kw">if </span>stylesheet_res.status &gt;= <span class="number">400 </span>{
-            <span class="macro">bail!</span>(<span class="string">&quot;Expected a successful response for Google fonts stylesheet&quot;</span>);
-        }
+        <span class="kw">let </span>stylesheet = <span class="kw">match </span><span class="kw-2">&amp;*</span>stylesheet_res {
+            <span class="prelude-val">Ok</span>(r) =&gt; <span class="prelude-val">Some</span>(
+                update_stylesheet(r.<span class="kw">await</span><span class="question-mark">?</span>.body.to_string(), options, scoped_font_family)
+                    .<span class="kw">await</span><span class="question-mark">?
+                    </span>.clone(),
+            ),
+            <span class="prelude-val">Err</span>(err) =&gt; {
+                <span class="comment">// Inform the user of the failure to retreive the stylesheet, but don&#39;t
+                // propagate this error. We don&#39;t want e.g. offline connections to prevent page
+                // renders during development. During production builds, however, this error
+                // should propagate.
+                //
+                // TODO(WEB-283): Use fallback in dev in this case
+                // TODO(WEB-293): Fail production builds (not dev) in this case
+                </span>err.to_issue(IssueSeverity::Warning.into(), css_virtual_path)
+                    .as_issue()
+                    .emit();
 
-        <span class="kw">let </span>stylesheet = <span class="kw-2">&amp;*</span>stylesheet_res.body.to_string().<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">let </span>options = options_from_request(request).<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="prelude-val">None
+            </span>}
+        };
 
+        <span class="kw">let </span>properties = get_font_css_properties(scoped_font_family, options).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>css_asset = VirtualAssetVc::new(
-            attached_next_js_package_path(<span class="self">self</span>.project_path)
-                .join(<span class="string">&quot;internal/font/google/cssmodule.module.css&quot;</span>),
+            css_virtual_path,
             FileContent::Content(
                 <span class="macro">formatdoc!</span>(
                     <span class="string">r#&quot;
                         {}
 
                         .className {{
-                            font-family: &quot;{}&quot;;
+                            font-family: {};
+                            {}{}
                         }}
                         &quot;#</span>,
-                    stylesheet,
-                    options.font_family
+                    stylesheet.unwrap_or_else(|| <span class="string">&quot;&quot;</span>.to_owned()),
+                    properties.font_family.<span class="kw">await</span><span class="question-mark">?</span>,
+                    properties
+                        .weight
+                        .<span class="kw">await</span><span class="question-mark">?
+                        </span>.map(|w| <span class="macro">format!</span>(<span class="string">&quot;font-weight: {};\n&quot;</span>, w))
+                        .unwrap_or_else(|| <span class="string">&quot;&quot;</span>.to_owned()),
+                    properties
+                        .style
+                        .<span class="kw">await</span><span class="question-mark">?
+                        </span>.as_ref()
+                        .map(|s| <span class="macro">format!</span>(<span class="string">&quot;font-style: {};\n&quot;</span>, s))
+                        .unwrap_or_else(|| <span class="string">&quot;&quot;</span>.to_owned()),
                 )
                 .into(),
             )
@@ -398,8 +575,61 @@
 }
 
 <span class="attr">#[turbo_tasks::function]
-</span><span class="kw">async fn </span>get_stylesheet_url_from_request(request_json: StringVc) -&gt; <span class="prelude-ty">Result</span>&lt;StringVc&gt; {
-    <span class="kw">let </span>options = options_from_request(request_json).<span class="kw">await</span><span class="question-mark">?</span>;
+</span><span class="kw">async fn </span>update_stylesheet(
+    stylesheet: StringVc,
+    options: NextFontGoogleOptionsVc,
+    scoped_font_family: StringVc,
+) -&gt; <span class="prelude-ty">Result</span>&lt;StringVc&gt; {
+    <span class="comment">// Update font-family definitions to the scoped name
+    // TODO: Do this more resiliently, e.g. transforming an swc ast
+    </span><span class="prelude-val">Ok</span>(StringVc::cell(stylesheet.<span class="kw">await</span><span class="question-mark">?</span>.replace(
+        <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;font-family: &#39;{}&#39;;&quot;</span>, <span class="kw-2">&amp;*</span>options.<span class="kw">await</span><span class="question-mark">?</span>.font_family),
+        <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;font-family: &#39;{}&#39;;&quot;</span>, <span class="kw-2">&amp;*</span>scoped_font_family.<span class="kw">await</span><span class="question-mark">?</span>),
+    )))
+}
+
+<span class="attr">#[turbo_tasks::function]
+</span><span class="kw">async fn </span>get_scoped_font_family(query_vc: QueryMapVc) -&gt; <span class="prelude-ty">Result</span>&lt;StringVc&gt; {
+    <span class="kw">let </span>options = font_options_from_query_map(query_vc).<span class="kw">await</span><span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>(StringVc::cell(<span class="macro">format!</span>(
+        <span class="string">&quot;__{}_{:x?}&quot;</span>,
+        options.font_family.replace(<span class="string">&#39; &#39;</span>, <span class="string">&quot;_&quot;</span>),
+        <span class="kw-2">*</span>get_request_hash(query_vc).<span class="kw">await</span><span class="question-mark">?
+    </span>)))
+}
+
+<span class="attr">#[turbo_tasks::function]
+</span><span class="kw">async fn </span>get_request_id(query_vc: QueryMapVc) -&gt; <span class="prelude-ty">Result</span>&lt;StringVc&gt; {
+    <span class="kw">let </span>options = font_options_from_query_map(query_vc).<span class="kw">await</span><span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>(StringVc::cell(<span class="macro">format!</span>(
+        <span class="string">&quot;{}_{:x?}&quot;</span>,
+        options.font_family.to_lowercase().replace(<span class="string">&#39; &#39;</span>, <span class="string">&quot;_&quot;</span>),
+        get_request_hash(query_vc).<span class="kw">await</span><span class="question-mark">?</span>,
+    )))
+}
+
+<span class="attr">#[turbo_tasks::function]
+</span><span class="kw">async fn </span>get_request_hash(query_vc: QueryMapVc) -&gt; <span class="prelude-ty">Result</span>&lt;U32Vc&gt; {
+    <span class="kw">let </span>query = <span class="kw-2">&amp;*</span>query_vc.<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>query = query.as_ref().context(<span class="string">&quot;Query map must be present&quot;</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>to_hash = <span class="macro">vec!</span>[];
+    <span class="kw">for </span>(k, v) <span class="kw">in </span>query {
+        to_hash.push(k);
+        to_hash.push(v);
+    }
+
+    <span class="prelude-val">Ok</span>(U32Vc::cell(
+        <span class="comment">// Truncate the has to u32. These hashes are ultimately displayed as 8-character
+        // hexadecimal values.
+        </span>hash_xxh3_hash64(to_hash) <span class="kw">as </span>u32,
+    ))
+}
+
+<span class="attr">#[turbo_tasks::function]
+</span><span class="kw">async fn </span>get_stylesheet_url_from_options(options: NextFontGoogleOptionsVc) -&gt; <span class="prelude-ty">Result</span>&lt;StringVc&gt; {
+    <span class="kw">let </span>options = options.<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(StringVc::cell(get_stylesheet_url(
         GOOGLE_FONTS_STYLESHEET_URL,
@@ -418,11 +648,61 @@
 <span class="attr">#[turbo_tasks::value(transparent)]
 </span><span class="kw">struct </span>NextFontGoogleOptions(<span class="self">self</span>::options::NextFontGoogleOptions);
 
-<span class="attr">#[turbo_tasks::function]
-</span><span class="kw">async fn </span>options_from_request(request: StringVc) -&gt; <span class="prelude-ty">Result</span>&lt;NextFontGoogleOptionsVc&gt; {
-    <span class="kw">let </span>request: NextFontRequest = serde_json::from_str(<span class="kw-2">&amp;</span>request.<span class="kw">await</span><span class="question-mark">?</span>)<span class="question-mark">?</span>;
+<span class="attr">#[turbo_tasks::value(transparent)]
+</span><span class="kw">struct </span>FontCssProperties {
+    font_family: StringVc,
+    weight: OptionU16Vc,
+    style: OptionStringVc,
+}
 
-    <span class="self">self</span>::options::options_from_request(<span class="kw-2">&amp;</span>request, <span class="kw-2">&amp;</span>FONT_DATA).map(NextFontGoogleOptionsVc::cell)
+<span class="attr">#[turbo_tasks::function]
+</span><span class="kw">async fn </span>get_font_css_properties(
+    scoped_font_family: StringVc,
+    options: NextFontGoogleOptionsVc,
+) -&gt; <span class="prelude-ty">Result</span>&lt;FontCssPropertiesVc&gt; {
+    <span class="kw">let </span>options = <span class="kw-2">&amp;*</span>options.<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>scoped_font_family = <span class="kw-2">&amp;*</span>scoped_font_family.<span class="kw">await</span><span class="question-mark">?</span>;
+
+    <span class="kw">let </span><span class="kw-2">mut </span>font_families = <span class="macro">vec!</span>[scoped_font_family.clone()];
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(fallback) = <span class="kw-2">&amp;</span>options.fallback {
+        font_families.extend_from_slice(fallback);
+    }
+
+    <span class="prelude-val">Ok</span>(FontCssPropertiesVc::cell(FontCssProperties {
+        font_family: StringVc::cell(
+            font_families
+                .iter()
+                .map(|f| <span class="macro">format!</span>(<span class="string">&quot;&#39;{}&#39;&quot;</span>, f))
+                .collect::&lt;Vec&lt;String&gt;&gt;()
+                .join(<span class="string">&quot;, &quot;</span>),
+        ),
+        weight: OptionU16Vc::cell(<span class="kw">match </span><span class="kw-2">&amp;</span>options.weights {
+            FontWeights::Variable =&gt; <span class="prelude-val">None</span>,
+            FontWeights::Fixed(weights) =&gt; weights.first().cloned(),
+        }),
+        style: OptionStringVc::cell(options.styles.first().cloned()),
+    }))
+}
+
+<span class="attr">#[turbo_tasks::function]
+</span><span class="kw">async fn </span>font_options_from_query_map(query: QueryMapVc) -&gt; <span class="prelude-ty">Result</span>&lt;NextFontGoogleOptionsVc&gt; {
+    <span class="kw">let </span>query_map = <span class="kw-2">&amp;*</span>query.<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="comment">// These are invariants from the next/font swc transform. Regular errors instead
+    // of Issues should be okay.
+    </span><span class="kw">let </span>query_map = query_map
+        .as_ref()
+        .context(<span class="string">&quot;@next/font/google queries must exist&quot;</span>)<span class="question-mark">?</span>;
+
+    <span class="kw">if </span>query_map.len() != <span class="number">1 </span>{
+        <span class="macro">bail!</span>(<span class="string">&quot;@next/font/google queries must only have one entry&quot;</span>);
+    }
+
+    <span class="kw">let </span><span class="prelude-val">Some</span>((json, <span class="kw">_</span>)) = query_map.iter().next() <span class="kw">else </span>{
+            <span class="macro">bail!</span>(<span class="string">&quot;Expected one entry&quot;</span>);
+        };
+
+    <span class="self">self</span>::options::options_from_request(<span class="kw-2">&amp;</span>serde_json::from_str(json)<span class="question-mark">?</span>, <span class="kw-2">&amp;</span>FONT_DATA)
+        .map(NextFontGoogleOptionsVc::cell)
 }
 </code></pre></div>
 </section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="next_core" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (215e3cd21 2022-11-03)" ></div></body></html>
