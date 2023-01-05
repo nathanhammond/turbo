@@ -27,8 +27,8 @@ jobs:
           - host: ubuntu-latest
             container: ubuntu:xenial
             container-options: "--platform=linux/amd64 --rm"
-            container-setup: "apt-get update && apt-get install -y curl"
-            target: "x86_64-unknown-linux-gnu"
+            container-setup: "apt-get update && apt-get install -y curl musl-tools"
+            target: "x86_64-unknown-linux-musl"
             lib-cache-key: turbo-go-cross-${{ inputs.release_branch }}
             setup: "apt-get install -y build-essential clang-5.0 lldb-5.0 llvm-5.0-dev libclang-5.0-dev"
           - host: ubuntu-latest
@@ -127,7 +127,7 @@ jobs:
       - name: Move Rust artifacts into place
         run: |
           mv rust-artifacts/turbo-aarch64-apple-darwin cli/dist-darwin-arm64
-          mv rust-artifacts/turbo-aarch64-unknown-linux-gnu cli/dist-linux-arm64
+          mv rust-artifacts/turbo-aarch64-unknown-linux-musl cli/dist-linux-arm64
           cp -r rust-artifacts/turbo-x86_64-pc-windows-gnu cli/dist-windows-arm64
           mv rust-artifacts/turbo-x86_64-unknown-linux-gnu cli/dist-linux-amd64
           mv rust-artifacts/turbo-x86_64-apple-darwin cli/dist-darwin-amd64
