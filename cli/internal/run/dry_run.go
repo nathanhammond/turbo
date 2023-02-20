@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	"github.com/mitchellh/cli"
@@ -68,15 +69,22 @@ func DryRun(
 		tracker,
 		rs,
 		base,
-		turboCache,
 	)
 
 	if err != nil {
 		return err
 	}
 
+	// We walk the graph with no concurrency.
+	// Populating the cache state is parallelizable.
+	// Do this _after_ walking the graph.
+	withCacheState, err := checkCacheState(turboCache, taskSummaries)
+	if err != nil {
+		return err
+	}
+
 	// Assign the Task Summaries to the main summary
-	summary.Tasks = taskSummaries
+	summary.Tasks = withCacheState
 
 	// Render the dry run as json
 	if dryRunJSON {
@@ -96,7 +104,7 @@ func DryRun(
 	return nil
 }
 
-func executeDryRun(ctx gocontext.Context, engine *core.Engine, g *graph.CompleteGraph, taskHashes *taskhash.Tracker, rs *runSpec, base *cmdutil.CmdBase, turboCache cache.Cache) ([]taskSummary, error) {
+func executeDryRun(ctx gocontext.Context, engine *core.Engine, g *graph.CompleteGraph, taskHashes *taskhash.Tracker, rs *runSpec, base *cmdutil.CmdBase) ([]taskSummary, error) {
 	taskIDs := []taskSummary{}
 
 	dryRunExecFunc := func(ctx gocontext.Context, packageTask *nodes.PackageTask) error {
@@ -127,11 +135,6 @@ func executeDryRun(ctx gocontext.Context, engine *core.Engine, g *graph.Complete
 			return err
 		}
 
-		itemStatus, err := turboCache.Exists(hash)
-		if err != nil {
-			return err
-		}
-
 		taskIDs = append(taskIDs, taskSummary{
 			TaskID:                 packageTask.TaskID,
 			Task:                   packageTask.Task,
@@ -144,7 +147,6 @@ func executeDryRun(ctx gocontext.Context, engine *core.Engine, g *graph.Complete
 			Command:                command,
 
 			Hash:         hash,        // TODO(mehulkar): Move this to PackageTask
-			CacheState:   itemStatus,  // TODO(mehulkar): Move this to PackageTask
 			Dependencies: ancestors,   // TODO(mehulkar): Move this to PackageTask
 			Dependents:   descendents, // TODO(mehulkar): Move this to PackageTask
 		})
@@ -171,6 +173,42 @@ func executeDryRun(ctx gocontext.Context, engine *core.Engine, g *graph.Complete
 	}
 
 	return taskIDs, nil
+}
+
+func checkCacheState(turboCache cache.Cache, taskSummaries []taskSummary) ([]taskSummary, error) {
+	maxParallelRequests := 8
+	taskCount := len(taskSummaries)
+
+	parallelRequestCount := maxParallelRequests
+	if taskCount < maxParallelRequests {
+		parallelRequestCount = taskCount
+	}
+
+	queue := make(chan int, taskCount)
+
+	var returnErr error
+
+	wg := &sync.WaitGroup{}
+	for i := 0; i < parallelRequestCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range queue {
+				task := taskSummaries[index]
+				itemStatus, err := turboCache.Exists(task.Hash)
+				task.CacheState = itemStatus // TODO(mehulkar): Move this to PackageTask
+				returnErr = err
+			}
+		}()
+	}
+
+	for index := range taskSummaries {
+		queue <- index
+	}
+	close(queue)
+	wg.Wait()
+
+	return taskSummaries, returnErr
 }
 
 func renderDryRunSinglePackageJSON(summary *dryRunSummary) (string, error) {
