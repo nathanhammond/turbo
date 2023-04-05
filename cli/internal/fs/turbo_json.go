@@ -595,104 +595,36 @@ func (btd *BookkeepingTaskDefinition) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON serializes taskDefinitionHashable struct into json
 func (c taskDefinitionHashable) MarshalJSON() ([]byte, error) {
-	// Initialize with empty arrays, so we get empty arrays serialized into JSON
-	task := rawTaskWithDefaults{
-		Outputs:        []string{},
-		Inputs:         []string{},
-		Env:            []string{},
-		PassthroughEnv: []string{},
-		DependsOn:      []string{},
-	}
-
-	task.Persistent = c.Persistent
-	task.Cache = &c.ShouldCache
-	task.OutputMode = c.OutputMode
-
-	if len(c.Inputs) > 0 {
-		task.Inputs = c.Inputs
-	}
-
-	if len(c.EnvVarDependencies) > 0 {
-		task.Env = append(task.Env, c.EnvVarDependencies...)
-	}
-
-	if len(c.Outputs.Inclusions) > 0 {
-		task.Outputs = append(task.Outputs, c.Outputs.Inclusions...)
-	}
-
-	for _, i := range c.Outputs.Exclusions {
-		task.Outputs = append(task.Outputs, "!"+i)
-	}
-
-	if len(c.TaskDependencies) > 0 {
-		task.DependsOn = append(task.DependsOn, c.TaskDependencies...)
-	}
-
-	for _, i := range c.TopologicalDependencies {
-		task.DependsOn = append(task.DependsOn, "^"+i)
-	}
-
-	// These _should_ already be sorted when the TaskDefinition struct was unmarshaled,
-	// but we want to ensure they're sorted on the way out also, just in case something
-	// in the middle mutates the items.
-	sort.Strings(task.DependsOn)
-	sort.Strings(task.Outputs)
-	sort.Strings(task.Env)
-	sort.Strings(task.Inputs)
+	task := makeRawTask(
+		c.Persistent,
+		c.ShouldCache,
+		c.OutputMode,
+		c.Inputs,
+		c.Outputs,
+		c.EnvVarDependencies,
+		c.TaskDependencies,
+		c.TopologicalDependencies,
+	)
 	return json.Marshal(task)
 }
 
 // MarshalJSON serializes TaskDefinition struct into json
 func (c TaskDefinition) MarshalJSON() ([]byte, error) {
-	// Initialize with empty arrays, so we get empty arrays serialized into JSON
-	task := rawTaskWithDefaults{
-		Outputs:        []string{},
-		Inputs:         []string{},
-		Env:            []string{},
-		DependsOn:      []string{},
-		PassthroughEnv: []string{},
-	}
-
-	task.Persistent = c.Persistent
-	task.Cache = &c.ShouldCache
-	task.OutputMode = c.OutputMode
+	task := makeRawTask(
+		c.Persistent,
+		c.ShouldCache,
+		c.OutputMode,
+		c.Inputs,
+		c.Outputs,
+		c.EnvVarDependencies,
+		c.TaskDependencies,
+		c.TopologicalDependencies,
+	)
 
 	if len(c.PassthroughEnv) > 0 {
 		task.PassthroughEnv = append(task.PassthroughEnv, c.PassthroughEnv...)
 	}
-
-	if len(c.Inputs) > 0 {
-		task.Inputs = c.Inputs
-	}
-
-	if len(c.EnvVarDependencies) > 0 {
-		task.Env = append(task.Env, c.EnvVarDependencies...)
-	}
-
-	if len(c.Outputs.Inclusions) > 0 {
-		task.Outputs = append(task.Outputs, c.Outputs.Inclusions...)
-	}
-
-	for _, i := range c.Outputs.Exclusions {
-		task.Outputs = append(task.Outputs, "!"+i)
-	}
-
-	if len(c.TaskDependencies) > 0 {
-		task.DependsOn = append(task.DependsOn, c.TaskDependencies...)
-	}
-
-	for _, i := range c.TopologicalDependencies {
-		task.DependsOn = append(task.DependsOn, "^"+i)
-	}
-
-	// These _should_ already be sorted when the TaskDefinition struct was unmarshaled,
-	// but we want to ensure they're sorted on the way out also, just in case something
-	// in the middle mutates the items.
-	sort.Strings(task.DependsOn)
-	sort.Strings(task.Outputs)
-	sort.Strings(task.Env)
 	sort.Strings(task.PassthroughEnv)
-	sort.Strings(task.Inputs)
 
 	return json.Marshal(task)
 }
@@ -775,4 +707,52 @@ func (c *TurboJSON) MarshalJSON() ([]byte, error) {
 	raw.RemoteCacheOptions = c.RemoteCacheOptions
 
 	return json.Marshal(&raw)
+}
+
+func makeRawTask(persistent bool, shouldCache bool, outputMode util.TaskOutputMode, inputs []string, outputs TaskOutputs, envVarDependencies []string, taskDependencies []string, topologicalDependencies []string) *rawTaskWithDefaults {
+	// Initialize with empty arrays, so we get empty arrays serialized into JSON
+	task := &rawTaskWithDefaults{
+		Outputs:        []string{},
+		Inputs:         []string{},
+		Env:            []string{},
+		PassthroughEnv: []string{},
+		DependsOn:      []string{},
+	}
+
+	task.Persistent = persistent
+	task.Cache = &shouldCache
+	task.OutputMode = outputMode
+
+	if len(inputs) > 0 {
+		task.Inputs = inputs
+	}
+
+	if len(envVarDependencies) > 0 {
+		task.Env = append(task.Env, envVarDependencies...)
+	}
+
+	if len(outputs.Inclusions) > 0 {
+		task.Outputs = append(task.Outputs, outputs.Inclusions...)
+	}
+
+	for _, i := range outputs.Exclusions {
+		task.Outputs = append(task.Outputs, "!"+i)
+	}
+
+	if len(taskDependencies) > 0 {
+		task.DependsOn = append(task.DependsOn, taskDependencies...)
+	}
+
+	for _, i := range topologicalDependencies {
+		task.DependsOn = append(task.DependsOn, "^"+i)
+	}
+
+	// These _should_ already be sorted when the TaskDefinition struct was unmarshaled,
+	// but we want to ensure they're sorted on the way out also, just in case something
+	// in the middle mutates the items.
+	sort.Strings(task.DependsOn)
+	sort.Strings(task.Outputs)
+	sort.Strings(task.Env)
+	sort.Strings(task.Inputs)
+	return task
 }
