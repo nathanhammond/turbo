@@ -9,7 +9,7 @@ Check
     Global Files               = 2
     External Dependencies Hash = 
     Global Cache Key           = Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo
-    Root pipeline              = {"//#build":{"outputs":[],"cache":false,"dependsOn":[],"inputs":[],"outputMode":"full","env":[],"persistent":false}}
+    Root pipeline              = {"//#build":{"outputs":[],"cache":false,"dependsOn":[],"inputs":[],"outputMode":"full","passthroughEnv":[],"env":[],"persistent":false}}
   
   Tasks to Run
   build
