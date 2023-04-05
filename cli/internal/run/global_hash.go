@@ -33,7 +33,7 @@ type GlobalHashable struct {
 	envMode              util.EnvMode
 }
 
-// getGlobalHashable converts GlobalHashable into an anonymous struct.
+// getOldGlobalHashable converts GlobalHashable into an anonymous struct.
 // This exists because the global hash was originally implemented with an anonymous
 // struct, and changing to a named struct changes the global hash (because the hash
 // is essentially a hash of `fmt.Sprint("%#v", thing)`, and the type is part of that string.
@@ -41,7 +41,7 @@ type GlobalHashable struct {
 // struct, it would change the global hash for everyone, invalidating EVERY TURBO CACHE ON THE PLANET!
 // We can remove this converter when we are going to have to update the global hash for something
 // else anyway.
-func getGlobalHashable(named GlobalHashable) struct {
+func getOldGlobalHashable(named GlobalHashable) struct {
 	globalFileHashMap    map[turbopath.AnchoredUnixPath]string
 	rootExternalDepsHash string
 	hashedSortedEnvPairs env.EnvironmentVariablePairs
