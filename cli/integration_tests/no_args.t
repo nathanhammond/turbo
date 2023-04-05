@@ -48,6 +48,7 @@ Make sure exit code is 2 when no args are passed
         --force                          Ignore the existing cache (to force execution)
         --global-deps <GLOBAL_DEPS>      Specify glob of global filesystem dependencies to be hashed. Useful for .env and files
         --graph [<GRAPH>]                Generate a graph of the task execution and output to a file when a filename is specified (.svg, .png, .jpg, .pdf, .json, .html). Outputs dot graph to stdout when if no filename is provided
+        --env [<ENV_MODE>]               Environment variable mode. Loose passes the entire environment. Strict uses an allowlist specified in turbo.json [default: infer] [possible values: infer, loose, strict]
         --ignore <IGNORE>                Files to ignore when calculating changed files (i.e. --since). Supports globs
         --include-dependencies           Include the dependencies of tasks in execution
         --no-cache                       Avoid saving task results to the cache. Useful for development/watch tasks

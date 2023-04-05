@@ -19,6 +19,7 @@ Make sure we prune tasks that reference a pruned workspace
         "dependsOn": [],
         "inputs": [],
         "outputMode": "full",
+        "passthroughEnv": [],
         "env": [],
         "persistent": false
       }

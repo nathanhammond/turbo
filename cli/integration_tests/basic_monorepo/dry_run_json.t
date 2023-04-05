@@ -23,6 +23,7 @@ Setup
         "dependsOn": [],
         "inputs": [],
         "outputMode": "full",
+        "passthroughEnv": [],
         "env": [],
         "persistent": false
       },
@@ -32,6 +33,7 @@ Setup
         "dependsOn": [],
         "inputs": [],
         "outputMode": "full",
+        "passthroughEnv": [],
         "env": [
           "NODE_ENV"
         ],
@@ -43,6 +45,7 @@ Setup
         "dependsOn": [],
         "inputs": [],
         "outputMode": "full",
+        "passthroughEnv": [],
         "env": [],
         "persistent": false
       },
@@ -55,6 +58,7 @@ Setup
         "dependsOn": [],
         "inputs": [],
         "outputMode": "full",
+        "passthroughEnv": [],
         "env": [],
         "persistent": false
       },
@@ -64,6 +68,7 @@ Setup
         "dependsOn": [],
         "inputs": [],
         "outputMode": "full",
+        "passthroughEnv": [],
         "env": [],
         "persistent": false
       }
@@ -115,6 +120,7 @@ Setup
       "dependsOn": [],
       "inputs": [],
       "outputMode": "full",
+      "passthroughEnv": [],
       "env": [],
       "persistent": false
     },
@@ -159,6 +165,7 @@ Setup
       "dependsOn": [],
       "inputs": [],
       "outputMode": "full",
+      "passthroughEnv": [],
       "env": [
         "NODE_ENV"
       ],
