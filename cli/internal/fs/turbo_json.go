@@ -703,7 +703,7 @@ func (c *TurboJSON) MarshalJSON() ([]byte, error) {
 	raw.GlobalDependencies = c.GlobalDeps
 	raw.GlobalEnv = c.GlobalEnv
 	raw.GlobalPassthroughEnv = c.GlobalPassthroughEnv
-	raw.Pipeline = c.Pipeline.Pristine(true)
+	raw.Pipeline = c.Pipeline.Pristine(true) // always resolve 0-values for experimental fields
 	raw.RemoteCacheOptions = c.RemoteCacheOptions
 
 	return json.Marshal(&raw)
