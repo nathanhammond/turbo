@@ -61,6 +61,7 @@ Validate that we got a full task summary for the failed task with an error in .e
     },
     "expandedOutputs": [],
     "framework": "",
+    "envMode": "infer",
     "environmentVariables": {
       "configured": [],
       "inferred": [],
