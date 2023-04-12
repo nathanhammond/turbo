@@ -29,9 +29,10 @@ import (
 // package-task hashing is threadsafe, provided topographical order is
 // respected.
 type Tracker struct {
-	rootNode   string
-	globalHash string
-	pipeline   fs.Pipeline
+	rootNode             string
+	globalHash           string
+	globalPassthroughEnv []string
+	pipeline             fs.Pipeline
 
 	packageInputsHashes packageFileHashes
 
@@ -51,10 +52,11 @@ type Tracker struct {
 }
 
 // NewTracker creates a tracker for package-inputs combinations and package-task combinations.
-func NewTracker(rootNode string, globalHash string, pipeline fs.Pipeline) *Tracker {
+func NewTracker(rootNode string, globalHash string, globalPassthroughEnv []string, pipeline fs.Pipeline) *Tracker {
 	return &Tracker{
 		rootNode:               rootNode,
 		globalHash:             globalHash,
+		globalPassthroughEnv:   globalPassthroughEnv,
 		pipeline:               pipeline,
 		packageTaskHashes:      make(map[string]string),
 		packageTaskFramework:   make(map[string]string),
@@ -315,8 +317,8 @@ func calculateTaskHashFromHashable(full *taskHashable) (string, error) {
 			return fs.HashObject(full)
 		}
 
-		// If we're in infer mode, and there is no global pass through config,
-		// we can use the old anonymous struct. this will be true for everyone not using the strict env
+		// If we're in infer mode, and there is no task pass through config,
+		// we use the old struct layout. this will be true for everyone not using the strict env
 		// feature, and we don't want to break their cache.
 		return fs.HashObject(&oldTaskHashable{
 			packageDir:           full.packageDir,
@@ -333,9 +335,14 @@ func calculateTaskHashFromHashable(full *taskHashable) (string, error) {
 		// Remove the passthroughs from hash consideration if we're explicitly loose.
 		full.passthroughEnv = nil
 		return fs.HashObject(full)
-	default:
-		// When we aren't in infer or loose mode we can hash the whole object as is.
+	case util.Strict:
+		// Collapse `nil` and `[]` in strict mode.
+		if full.passthroughEnv == nil {
+			full.passthroughEnv = make([]string, 0)
+		}
 		return fs.HashObject(full)
+	default:
+		panic("unimplemented environment mode")
 	}
 }
 
@@ -404,6 +411,15 @@ func (th *Tracker) CalculateTaskHash(packageTask *nodes.PackageTask, dependencyS
 	// log any auto detected env vars
 	logger.Debug(fmt.Sprintf("task hash env vars for %s:%s", packageTask.PackageName, packageTask.Task), "vars", hashableEnvPairs)
 
+	// If we have task passthroughs we get just the unique ones.
+	uniqueTaskPassthrough := packageTask.TaskDefinition.PassthroughEnv
+	if packageTask.TaskDefinition.PassthroughEnv != nil {
+		taskPassthroughSet := util.SetFromStrings(packageTask.TaskDefinition.PassthroughEnv)
+		globalPassthroughSet := util.SetFromStrings(th.globalPassthroughEnv)
+		uniqueTaskPassthrough = taskPassthroughSet.Difference(globalPassthroughSet).UnsafeListOfStrings()
+		sort.Strings(uniqueTaskPassthrough)
+	}
+
 	hash, err := calculateTaskHashFromHashable(&taskHashable{
 		packageDir:           packageTask.Pkg.Dir.ToUnixPath(),
 		hashOfFiles:          hashOfFiles,
@@ -412,7 +428,7 @@ func (th *Tracker) CalculateTaskHash(packageTask *nodes.PackageTask, dependencyS
 		outputs:              outputs.Sort(),
 		passThruArgs:         args,
 		envMode:              packageTask.EnvMode,
-		passthroughEnv:       packageTask.TaskDefinition.PassthroughEnv,
+		passthroughEnv:       uniqueTaskPassthrough,
 		hashableEnvPairs:     hashableEnvPairs,
 		globalHash:           th.globalHash,
 		taskDependencyHashes: taskDependencyHashes,
