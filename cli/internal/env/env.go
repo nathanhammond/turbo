@@ -1,6 +1,7 @@
 package env
 
 import (
+	"crypto/hmac"
 	"crypto/sha256"
 	"fmt"
 	"os"
@@ -75,11 +76,12 @@ func (evm EnvironmentVariableMap) mapToPair(transformer func(k string, v string)
 
 // ToSecretHashable returns a deterministically sorted set of EnvironmentVariablePairs from an EnvironmentVariableMap
 // This is the value used to print out the task hash input, so the values are cryptographically hashed
-func (evm EnvironmentVariableMap) ToSecretHashable() EnvironmentVariablePairs {
+func (evm EnvironmentVariableMap) ToSecretHashable(runID string) EnvironmentVariablePairs {
 	return evm.mapToPair(func(k, v string) string {
 		if v != "" {
-			hashedValue := sha256.Sum256([]byte(v))
-			return fmt.Sprintf("%v=%x", k, hashedValue)
+			hash := hmac.New(sha256.New, []byte(runID))
+			hash.Write([]byte(v))
+			return fmt.Sprintf("%v=%v;%x", k, runID, hash.Sum(nil))
 		}
 
 		return fmt.Sprintf("%v=%s", k, "")
