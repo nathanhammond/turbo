@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["SourceTransformVc",""],["SourceTransforms",""],["SourceTransformsVc","Vc for [`SourceTransforms`]"]],"trait":[["SourceTransform",""]],"type":[["SourceTransformsReadRef","see [turbo_tasks::ReadRef]"]]};
+window.SIDEBAR_ITEMS = {"struct":["SourceTransformVc","SourceTransforms","SourceTransformsVc"],"trait":["SourceTransform"],"type":["SourceTransformTraitRef","SourceTransformsReadRef"]};
