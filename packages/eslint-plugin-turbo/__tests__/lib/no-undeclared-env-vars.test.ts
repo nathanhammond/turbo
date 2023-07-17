@@ -346,6 +346,20 @@ ruleTester.run(RULES.noUndeclaredEnvVars, rule, {
     },
     {
       code: `
+        const val = process.env["THIS_DOES_NOT_EXIST"];
+      `,
+      options: [
+        { cwd: path.join(__dirname, "../../__fixtures__/configs/single") },
+      ],
+      errors: [
+        {
+          message:
+            "THIS_DOES_NOT_EXIST is not listed as a dependency in turbo.json",
+        },
+      ],
+    },
+    {
+      code: `
         var globalOrTask = process.env.TASK_ENV_KEY_NEW || process.env.GLOBAL_ENV_KEY_NEW;
         var oneOrTwo = process.env.ENV_VAR_ONE || process.env.ENV_VAR_TWO;
       `,
