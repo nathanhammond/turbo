@@ -19,9 +19,9 @@ const DEFAULT_PORT: u16 = 9789;
 const DEFAULT_SSO_PROVIDER: &str = "SAML/OIDC Single Sign-On";
 
 pub async fn sso_login(base: &mut CommandBase, sso_team: &str) -> Result<()> {
-    let repo_config = base.repo_config()?;
+    let config = base.turbo_config()?;
     let redirect_url = format!("http://{DEFAULT_HOST_NAME}:{DEFAULT_PORT}");
-    let login_url_configuration = repo_config.login_url();
+    let login_url_configuration = config.login_url();
     let mut login_url = Url::parse(login_url_configuration)?;
 
     login_url
@@ -92,9 +92,9 @@ fn make_token_name() -> Result<String> {
 }
 
 pub async fn login(base: &mut CommandBase) -> Result<()> {
-    let repo_config = base.repo_config()?;
+    let config = base.turbo_config()?;
     let redirect_url = format!("http://{DEFAULT_HOST_NAME}:{DEFAULT_PORT}");
-    let login_url_configuration = repo_config.login_url();
+    let login_url_configuration = config.login_url();
     let mut login_url = Url::parse(login_url_configuration)?;
 
     login_url
@@ -115,7 +115,7 @@ pub async fn login(base: &mut CommandBase) -> Result<()> {
     let token_cell = Arc::new(OnceCell::new());
     run_login_one_shot_server(
         DEFAULT_PORT,
-        repo_config.login_url().to_string(),
+        config.login_url().to_string(),
         token_cell.clone(),
     )
     .await?;
@@ -330,6 +330,12 @@ mod test {
         let mut base = CommandBase {
             repo_root: AbsoluteSystemPathBuf::new(root_dir.path().to_string_lossy()).unwrap(),
             ui: UI::new(false),
+            config: OnceCell::from(
+                TurborepoConfigBuilder::new()
+                    .with_api_url(Some(format!("http://localhost:{}", port)))
+                    .build()
+                    .unwrap(),
+            ),
             client_config: OnceCell::from(ClientConfigLoader::new().load().unwrap()),
             user_config: OnceCell::from(
                 UserConfigLoader::new(user_config_file.path().to_str().unwrap())
@@ -351,7 +357,7 @@ mod test {
         handle.abort();
 
         assert_eq!(
-            base.user_config().unwrap().token().unwrap(),
+            base.turbo_config().unwrap().token().unwrap(),
             turborepo_vercel_api_mock::EXPECTED_TOKEN
         );
     }
@@ -383,6 +389,12 @@ mod test {
         let mut base = CommandBase {
             repo_root: AbsoluteSystemPathBuf::new(repo_root_dir.path().to_string_lossy()).unwrap(),
             ui: UI::new(false),
+            config: OnceCell::from(
+                TurborepoConfigBuilder::new()
+                    .with_api_url(Some(format!("http://localhost:{}", port)))
+                    .build()
+                    .unwrap(),
+            ),
             client_config: OnceCell::from(ClientConfigLoader::new().load().unwrap()),
             user_config: OnceCell::from(
                 UserConfigLoader::new(user_config_file.path().to_str().unwrap())
@@ -406,7 +418,7 @@ mod test {
         handle.abort();
 
         assert_eq!(
-            base.user_config().unwrap().token().unwrap(),
+            base.turbo_config().unwrap().token().unwrap(),
             turborepo_vercel_api_mock::EXPECTED_TOKEN
         );
     }
