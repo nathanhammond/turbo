@@ -57,8 +57,8 @@ pub async fn sso_login(base: &mut CommandBase, sso_team: &str) -> Result<()> {
 
     let before = base.global_config_path()?.read_to_string()?;
     let after = set_path(&before, &["token"], &verified_user.token)?;
-    base.global_config_path()?.ensure_dir();
-    base.global_config_path()?.create_with_contents(after);
+    base.global_config_path()?.ensure_dir()?;
+    base.global_config_path()?.create_with_contents(after)?;
 
     println!(
         "
@@ -130,8 +130,8 @@ pub async fn login(base: &mut CommandBase) -> Result<()> {
 
     let before = base.global_config_path()?.read_to_string()?;
     let after = set_path(&before, &["token"], token)?;
-    base.global_config_path()?.ensure_dir();
-    base.global_config_path()?.create_with_contents(after);
+    base.global_config_path()?.ensure_dir()?;
+    base.global_config_path()?.create_with_contents(after)?;
 
     let client = base.api_client()?;
     let user_response = client.get_user(token.as_str()).await?;

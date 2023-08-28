@@ -78,7 +78,7 @@ impl Run {
         };
 
         let signature = if let Some(configuration_options) = &root_turbo_json.remote_cache_options {
-            configuration_options.signature.clone().unwrap_or_default()
+            configuration_options.signature.unwrap_or_default()
         } else {
             false
         };
