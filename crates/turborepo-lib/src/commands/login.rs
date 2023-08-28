@@ -129,7 +129,7 @@ pub async fn login(base: &mut CommandBase) -> Result<()> {
         .ok_or_else(|| anyhow!("Failed to get token"))?;
 
     let before = base.global_config_path()?.read_to_string()?;
-    let after = set_path(&before, &["token"], &token)?;
+    let after = set_path(&before, &["token"], token)?;
     base.global_config_path()?.ensure_dir();
     base.global_config_path()?.create_with_contents(after);
 
