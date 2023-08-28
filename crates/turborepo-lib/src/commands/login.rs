@@ -12,14 +12,14 @@ use tokio::sync::OnceCell;
 use tracing::warn;
 use turborepo_ui::{start_spinner, BOLD, CYAN};
 
-use crate::{commands::CommandBase, config::Error};
+use crate::{commands::CommandBase, config::Error, rewrite_json::set_path};
 
 const DEFAULT_HOST_NAME: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 9789;
 const DEFAULT_SSO_PROVIDER: &str = "SAML/OIDC Single Sign-On";
 
 pub async fn sso_login(base: &mut CommandBase, sso_team: &str) -> Result<()> {
-    let config = base.turbo_config()?;
+    let config = base.config()?;
     let redirect_url = format!("http://{DEFAULT_HOST_NAME}:{DEFAULT_PORT}");
     let login_url_configuration = config.login_url();
     let mut login_url = Url::parse(login_url_configuration)?;
@@ -55,8 +55,10 @@ pub async fn sso_login(base: &mut CommandBase, sso_team: &str) -> Result<()> {
     let verified_user = api_client.verify_sso_token(token, &token_name).await?;
     let user_response = api_client.get_user(&verified_user.token).await?;
 
-    base.user_config_mut()?
-        .set_token(Some(verified_user.token.clone()))?;
+    let before = base.global_config_path()?.read_to_string()?;
+    let after = set_path(&before, &["token"], &verified_user.token)?;
+    base.global_config_path()?.ensure_dir();
+    base.global_config_path()?.create_with_contents(after);
 
     println!(
         "
@@ -92,7 +94,7 @@ fn make_token_name() -> Result<String> {
 }
 
 pub async fn login(base: &mut CommandBase) -> Result<()> {
-    let config = base.turbo_config()?;
+    let config = base.config()?;
     let redirect_url = format!("http://{DEFAULT_HOST_NAME}:{DEFAULT_PORT}");
     let login_url_configuration = config.login_url();
     let mut login_url = Url::parse(login_url_configuration)?;
@@ -126,7 +128,10 @@ pub async fn login(base: &mut CommandBase) -> Result<()> {
         .get()
         .ok_or_else(|| anyhow!("Failed to get token"))?;
 
-    base.user_config_mut()?.set_token(Some(token.to_string()))?;
+    let before = base.global_config_path()?.read_to_string()?;
+    let after = set_path(&before, &["token"], &token)?;
+    base.global_config_path()?.ensure_dir();
+    base.global_config_path()?.create_with_contents(after);
 
     let client = base.api_client()?;
     let user_response = client.get_user(token.as_str()).await?;
@@ -294,7 +299,7 @@ mod test {
 
     use reqwest::Url;
     use serde::Deserialize;
-    use tempfile::{tempdir, NamedTempFile};
+    use tempfile::{NamedTempFile, TempDir};
     use turbopath::AbsoluteSystemPathBuf;
     use turborepo_ui::UI;
     use turborepo_vercel_api_mock::start_test_server;
@@ -305,59 +310,59 @@ mod test {
             login::{get_token_and_redirect, SsoPayload},
             CommandBase,
         },
-        config::{ClientConfigLoader, RepoConfigLoader, UserConfigLoader},
+        config::TurborepoConfigBuilder,
         Args,
     };
 
     #[tokio::test]
     async fn test_login() {
         let port = port_scanner::request_open_port().unwrap();
-        let handle = tokio::spawn(start_test_server(port));
 
+        // user config
         let user_config_file = NamedTempFile::new().unwrap();
         fs::write(user_config_file.path(), r#"{ "token": "hello" }"#).unwrap();
-        let repo_config_file = NamedTempFile::new().unwrap();
-        let repo_config_path = AbsoluteSystemPathBuf::try_from(repo_config_file.path()).unwrap();
+
+        // repo config
+        let repo_root = AbsoluteSystemPathBuf::try_from(TempDir::new().unwrap().path()).unwrap();
+        let repo_config_path = repo_root.join_components(&[".turbo", "config.json"]);
+        repo_config_path.ensure_dir().unwrap();
+
         // Explicitly pass the wrong port to confirm that we're reading it from the
         // manual override
-        fs::write(
-            repo_config_file.path(),
-            format!("{{ \"apiurl\": \"http://localhost:{}\" }}", port + 1),
-        )
-        .unwrap();
-        let root_dir = tempdir().unwrap();
+        repo_config_path
+            .create_with_contents(format!(
+                "{{ \"apiurl\": \"http://localhost:{}\" }}",
+                port + 1
+            ))
+            .unwrap();
+
+        let handle = tokio::spawn(start_test_server(port));
 
         let mut base = CommandBase {
-            repo_root: AbsoluteSystemPathBuf::new(root_dir.path().to_string_lossy()).unwrap(),
+            global_config_path: Some(
+                AbsoluteSystemPathBuf::try_from(user_config_file.path().to_path_buf()).unwrap(),
+            ),
+            repo_root: repo_root.clone(),
             ui: UI::new(false),
-            config: OnceCell::from(
-                TurborepoConfigBuilder::new()
-                    .with_api_url(Some(format!("http://localhost:{}", port)))
-                    .build()
-                    .unwrap(),
-            ),
-            client_config: OnceCell::from(ClientConfigLoader::new().load().unwrap()),
-            user_config: OnceCell::from(
-                UserConfigLoader::new(user_config_file.path().to_str().unwrap())
-                    .load()
-                    .unwrap(),
-            ),
-            repo_config: OnceCell::from(
-                RepoConfigLoader::new(repo_config_path)
-                    .with_api(Some(format!("http://localhost:{}", port)))
-                    .load()
-                    .unwrap(),
-            ),
+            config: OnceCell::new(),
             args: Args::default(),
             version: "",
         };
+        base.config
+            .set(
+                TurborepoConfigBuilder::new(&base)
+                    .with_api_url(Some(format!("http://localhost:{}", port)))
+                    .build()
+                    .unwrap(),
+            )
+            .unwrap();
 
         login::login(&mut base).await.unwrap();
 
         handle.abort();
 
         assert_eq!(
-            base.turbo_config().unwrap().token().unwrap(),
+            base.config().unwrap().token().unwrap(),
             turborepo_vercel_api_mock::EXPECTED_TOKEN
         );
     }
@@ -371,45 +376,45 @@ mod test {
     #[tokio::test]
     async fn test_sso_login() {
         let port = port_scanner::request_open_port().unwrap();
-        let handle = tokio::spawn(start_test_server(port));
 
+        // user config
         let user_config_file = NamedTempFile::new().unwrap();
         fs::write(user_config_file.path(), r#"{ "token": "hello" }"#).unwrap();
-        let repo_config_file = NamedTempFile::new().unwrap();
-        let repo_config_path = AbsoluteSystemPathBuf::try_from(repo_config_file.path()).unwrap();
+
+        // repo config
+        let repo_root = AbsoluteSystemPathBuf::try_from(TempDir::new().unwrap().path()).unwrap();
+        let repo_config_path = repo_root.join_components(&[".turbo", "config.json"]);
+        repo_config_path.ensure_dir().unwrap();
+
         // Explicitly pass the wrong port to confirm that we're reading it from the
         // manual override
-        fs::write(
-            repo_config_file.path(),
-            format!("{{ \"apiurl\": \"http://localhost:{}\" }}", port + 1),
-        )
-        .unwrap();
+        repo_config_path
+            .create_with_contents(format!(
+                "{{ \"apiurl\": \"http://localhost:{}\" }}",
+                port + 1
+            ))
+            .unwrap();
 
-        let repo_root_dir = tempdir().unwrap();
+        let handle = tokio::spawn(start_test_server(port));
+
         let mut base = CommandBase {
-            repo_root: AbsoluteSystemPathBuf::new(repo_root_dir.path().to_string_lossy()).unwrap(),
+            global_config_path: Some(
+                AbsoluteSystemPathBuf::try_from(user_config_file.path().to_path_buf()).unwrap(),
+            ),
+            repo_root: repo_root.clone(),
             ui: UI::new(false),
-            config: OnceCell::from(
-                TurborepoConfigBuilder::new()
-                    .with_api_url(Some(format!("http://localhost:{}", port)))
-                    .build()
-                    .unwrap(),
-            ),
-            client_config: OnceCell::from(ClientConfigLoader::new().load().unwrap()),
-            user_config: OnceCell::from(
-                UserConfigLoader::new(user_config_file.path().to_str().unwrap())
-                    .load()
-                    .unwrap(),
-            ),
-            repo_config: OnceCell::from(
-                RepoConfigLoader::new(repo_config_path)
-                    .with_api(Some(format!("http://localhost:{}", port)))
-                    .load()
-                    .unwrap(),
-            ),
+            config: OnceCell::new(),
             args: Args::default(),
             version: "",
         };
+        base.config
+            .set(
+                TurborepoConfigBuilder::new(&base)
+                    .with_api_url(Some(format!("http://localhost:{}", port)))
+                    .build()
+                    .unwrap(),
+            )
+            .unwrap();
 
         login::sso_login(&mut base, turborepo_vercel_api_mock::EXPECTED_SSO_TEAM_SLUG)
             .await
@@ -418,7 +423,7 @@ mod test {
         handle.abort();
 
         assert_eq!(
-            base.turbo_config().unwrap().token().unwrap(),
+            base.config().unwrap().token().unwrap(),
             turborepo_vercel_api_mock::EXPECTED_TOKEN
         );
     }

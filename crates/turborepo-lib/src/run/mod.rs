@@ -153,9 +153,9 @@ impl Run {
             vec![],
         )?;
 
-        let team_id = self.base.turbo_config()?.team_id();
+        let team_id = self.base.config()?.team_id();
 
-        let token = self.base.turbo_config()?.token();
+        let token = self.base.config()?.token();
 
         let api_auth = team_id.zip(token).map(|(team_id, token)| APIAuth {
             team_id: team_id.to_string(),
